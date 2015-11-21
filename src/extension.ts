@@ -18,30 +18,45 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 			let fileName: string;
 			let lineNumber: number;
+			let tags = path.join(vscode.workspace.rootPath, "TAGS");
+			console.log(tags);
 
-			let stream = fs.createReadStream(path.join(dir, "TAGS"));
-			stream.on("error", error => {
-				console.log(error);
-			});
+			let stream = fs.createReadStream(tags);
 			stream.on("data", (chunk: Buffer) => {
 				let sections = chunk.toString().split("\x0c");
-				sections.forEach(section => {
+				for (var i = 0; i < sections.length; i++) {
+					let section = sections[i];
 					let lines = section.split("\n");
-					lines.forEach(line => {
+					for (var j = 0; j < lines.length; j++) {
+						var line = lines[j];
 						let match = line.match(wordRegexp);
 						if (match) {
 							lineNumber = parseInt(match[1]);
 							fileName = lines[1].match(fileRegexp)[1];
-
-							let uri = vscode.Uri.file(path.join(dir, fileName));
+							console.log(fileName, lineNumber);
+							let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
 							let pos = new vscode.Position(lineNumber - 1, 0);
 
-							resolve(new vscode.Location(uri, pos));
+							return resolve(new vscode.Location(uri, pos));
 						}
-					});
-				});
+						if (token.isCancellationRequested) {
+							return reject("cancelled!");
+						}
+					}
+				}
+				if (typeof lineNumber === "undefined") {
+					return reject("could not find tag");
+				}
 			});
-
+			stream.on("error", error => {
+				console.log(error);
+			});
+			stream.on("close", close => {
+				console.log(close);
+			});
+			stream.on("end", end => {
+				console.log(end);
+			});
 		});
 	}
 }
@@ -54,6 +69,16 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log("Congratulations, your extension \"vscode-perl\" is now active!");
 
-
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
+	// vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
+	// 	wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+	// 	comments: {
+	// 		lineComment: "#",
+	// 	},
+	// 	brackets: [
+	// 		["{", "}"],
+	// 		["[", "]"],
+	// 		["(", ")"],
+	// 	],
+	// });
 }
