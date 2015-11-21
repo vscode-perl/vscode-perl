@@ -4,7 +4,9 @@ import * as fs from "fs";
 import * as cp from "child_process";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
+
 let fileRegexp = /^(.*),\d+$/;
+let tagsFile = "TAGS";
 
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
@@ -13,7 +15,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			let word = document.getText(range);
 			let wordRegexp = new RegExp(`\\x7f${word}\\x01(\\d+)`);
 
-			let tags = path.join(vscode.workspace.rootPath, "TAGS");
+			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 
 			let stream = fs.createReadStream(tags);
 			stream.on("data", (chunk: Buffer) => {
@@ -25,28 +27,25 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 						var line = lines[j];
 						let match = line.match(wordRegexp);
 						if (match) {
-							let lineNumber = parseInt(match[1]);
-
 							let fileMatch = lines[1].match(fileRegexp);
 							if (!fileMatch) {
-								return reject("no file matched !");
+								return reject("No file matched!");
 							}
-							let fileName = fileMatch[1];
 
-							let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
-							let pos = new vscode.Position(lineNumber - 1, 0);
-
+							let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileMatch[1]));
+							let pos = new vscode.Position(parseInt(match[1]) - 1, 0);
 							return resolve(new vscode.Location(uri, pos));
 						}
 						if (token.isCancellationRequested) {
-							return reject("cancelled!");
+							return reject("Cancelled.");
 						}
 					}
 				}
-				return reject("could not find tag");
+				return reject("Could not find tag.");
 			});
-			stream.on("error", error => {
-				console.error(error);
+			stream.on("error", (error: Buffer) => {
+				vscode.window.showErrorMessage(`An error occured while generating tags: ${()}`);
+				console.error(error.toString());
 			});
 			stream.on("close", close => {
 				console.log(close);
@@ -59,21 +58,18 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 }
 
 function makeTags() {
-	let s = cp.exec("ctags -R -e --languages=perl --extra=+q", {
+	let s = cp.exec(`ctags -R -e --languages=perl --extra=+q -f ${tagsFile}`, {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
-		console.log("tags generated.");
-		console.log(error, stdout, stderr);
+		if (error) {
+			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+		}
+		console.log("Tags generated.");
+		console.log(error, stdout.toString(), stderr.toString());
 	});
 };
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log("Congratulations, your extension \"vscode-perl\" is now active!");
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
 
