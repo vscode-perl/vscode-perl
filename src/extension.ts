@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
+let fileRegexp = /^(.*),\d+$/;
 
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
@@ -31,9 +32,14 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 						var line = lines[j];
 						let match = line.match(wordRegexp);
 						if (match) {
-							lineNumber = parseInt(match[1]);
-							fileName = lines[1].match(fileRegexp)[1];
-							console.log(fileName, lineNumber);
+							let lineNumber = parseInt(match[1]);
+
+							let fileMatch = lines[1].match(fileRegexp);
+							if (!fileMatch) {
+								return reject("no file matched !");
+							}
+							let fileName = fileMatch[1];
+
 							let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
 							let pos = new vscode.Position(lineNumber - 1, 0);
 
@@ -70,15 +76,30 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log("Congratulations, your extension \"vscode-perl\" is now active!");
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
-	// vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
-	// 	wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
-	// 	comments: {
-	// 		lineComment: "#",
-	// 	},
-	// 	brackets: [
-	// 		["{", "}"],
-	// 		["[", "]"],
-	// 		["(", ")"],
-	// 	],
-	// });
+
+	vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
+		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\'\"\,\.\<\>\/\?\s]+)/g,
+		comments: {
+			lineComment: "#",
+		},
+		brackets: [
+			["{", "}"],
+			["[", "]"],
+			["(", ")"],
+			["|", "|"],
+			["/", "/"],
+		],
+
+		__characterPairSupport: {
+			autoClosingPairs: [
+				{ open: "/", close: "/" },
+				{ open: "|", close: "|" },
+				{ open: "{", close: "}" },
+				{ open: "[", close: "]" },
+				{ open: "(", close: ")" },
+				{ open: "\"", close: "\"", notIn: ["string"] },
+				{ open: "'", close: "'", notIn: ["string", "comment"] }
+			]
+		}
+	});
 }
