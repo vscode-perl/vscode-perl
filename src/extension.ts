@@ -11,17 +11,9 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 		return new Promise((resolve, reject) => {
 			let range = document.getWordRangeAtPosition(position);
 			let word = document.getText(range);
-			console.log(word);
-
 			let wordRegexp = new RegExp(`\\x7f${word}\\x01(\\d+)`);
-			let fileRegexp = new RegExp("(.*),\\d");
-			let dir = vscode.workspace.rootPath;
-			console.log(dir);
 
-			let fileName: string;
-			let lineNumber: number;
 			let tags = path.join(vscode.workspace.rootPath, "TAGS");
-			console.log(tags);
 
 			let stream = fs.createReadStream(tags);
 			stream.on("data", (chunk: Buffer) => {
@@ -51,12 +43,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 						}
 					}
 				}
-				if (typeof lineNumber === "undefined") {
-					return reject("could not find tag");
-				}
+				return reject("could not find tag");
 			});
 			stream.on("error", error => {
-				console.log(error);
+				console.error(error);
 			});
 			stream.on("close", close => {
 				console.log(close);
