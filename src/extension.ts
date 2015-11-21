@@ -13,13 +13,16 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 			let wordRegexp = new RegExp(`\\x7f${word}\\x01(\\d+)`);
 			let fileRegexp = new RegExp("(.*),\\d");
-			let dir = path.dirname(document.uri.fsPath);
+			let dir = vscode.workspace.rootPath;
 			console.log(dir);
 
 			let fileName: string;
 			let lineNumber: number;
 
 			let stream = fs.createReadStream(path.join(dir, "TAGS"));
+			stream.on("error", error => {
+				console.log(error);
+			});
 			stream.on("data", (chunk: Buffer) => {
 				let sections = chunk.toString().split("\x0c");
 				sections.forEach(section => {
