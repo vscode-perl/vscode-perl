@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import * as cp from "child_process";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 let fileRegexp = /^(.*),\d+$/;
@@ -67,6 +68,15 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	}
 }
 
+function makeTags() {
+	let s = cp.exec("ctags -R -e --languages=perl --extra=+q", {
+		cwd: vscode.workspace.rootPath
+	}, (error, stdout, stderr) => {
+		console.log("tags generated.");
+		console.log(error, stdout, stderr);
+	});
+};
+
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -102,4 +112,6 @@ export function activate(context: vscode.ExtensionContext) {
 			]
 		}
 	});
+
+	makeTags();
 }
