@@ -43,13 +43,16 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 				}
 				return reject("Could not find tag.");
 			});
+
 			stream.on("error", (error: Buffer) => {
-				vscode.window.showErrorMessage(`An error occured while generating tags: ${()}`);
+				vscode.window.showErrorMessage(`An error occured while generating tags: ${error.toString() }`);
 				console.error(error.toString());
 			});
+
 			stream.on("close", close => {
 				console.log(close);
 			});
+
 			stream.on("end", end => {
 				console.log(end);
 			});
@@ -96,6 +99,12 @@ export function activate(context: vscode.ExtensionContext) {
 				{ open: "\"", close: "\"", notIn: ["string"] },
 				{ open: "'", close: "'", notIn: ["string", "comment"] }
 			]
+		}
+	});
+
+	vscode.workspace.onDidSaveTextDocument(document => {
+		if (document.languageId == "perl") {
+			makeTags();
 		}
 	});
 
