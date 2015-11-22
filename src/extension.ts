@@ -21,11 +21,35 @@ function parseLine(line: string): vscode.Location {
 	return new vscode.Location(uri, pos);
 }
 
+function getRangeBefore(range: vscode.Range, delta: number): vscode.Range {
+	return new vscode.Range(
+		range.start.with(range.start.line, range.start.character - delta),
+		range.start
+	);
+}
+
+function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
+	return new vscode.Position(
+		range.start.line,
+		range.start.character - delta
+	);
+}
+
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
 		return new Promise((resolve, reject) => {
-			let range = document.getWordRangeAtPosition(position);
-			let word = document.getText(range);
+			let wRange = document.getWordRangeAtPosition(position);
+			let word = document.getText(wRange);
+			let sRange = getRangeBefore(wRange, 2);
+			let separator = document.getText(sRange);
+
+			while (separator === "::") {
+				wRange = document.getWordRangeAtPosition(getPointBefore(sRange, 1));
+				word = document.getText(wRange) + separator + word;
+				sRange = getRangeBefore(wRange, 2)
+				separator = document.getText(sRange);
+			}
+
 			let fileName = document.fileName.replace(vscode.workspace.rootPath + "/", "");
 			console.log(`Loking for "${word}" in "${fileName}"`);
 
@@ -112,7 +136,7 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 }
 
 function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "-f", tagsFile], {
+	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "--extra=+q", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
