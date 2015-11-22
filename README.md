@@ -1,13 +1,29 @@
-# README
-## This is the README for your extension "vscode-perl" 
-You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
+# Perl for Visual Studio Code
 
-* Split the editor (`Cmd+\` on OSX or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on OSX or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (OSX) to see a list of Markdown snippets
+This extension aims to bring code intelligence for the perl language to [Visual Studio Code](https://code.visualstudio.com/), mainly through the use of [ctags](http://ctags.sourceforge.net/).
 
-### For more information
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+# Installing ctags
 
-** Enjoy!**
+## OS X
+
+You can install ctags with the package manager [homebrew](http://brew.sh/).
+
+```sh
+brew install ctags
+```
+
+## Windows
+
+You can install ctags with the package manager [chocolatey](https://chocolatey.org/)
+
+```sh
+choco install ctags
+```
+
+## Linux
+
+You can install ctags with you prefered package manager.
+
+```sh
+apt-get install ctags
+```
