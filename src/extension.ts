@@ -60,6 +60,46 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	}
 }
 
+let symbolKindMap = {
+	p: vscode.SymbolKind.Package,
+	s: vscode.SymbolKind.Function
+};
+
+class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
+	public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
+		return new Promise((resolve, reject) => {
+			let cmd = `ctags --languages=perl --fields=kn -f - ${document.fileName}`;
+			cp.exec(cmd, (error, stdout, stderr) => {
+				console.log(cmd, error, stdout.toString(), stderr.toString());
+				if (error) {
+					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+					return reject("An error occured while generating tags");
+				}
+
+				let lines = stdout.toString().split("\n");
+				let symbols: vscode.SymbolInformation[] = [];
+
+				for (var i = 0; i < lines.length; i++) {
+					let match = lines[i].split("\t");
+
+					if (match.length === 5) {
+						let name = match[0];
+						let kind = symbolKindMap[match[3]];
+						let line = match[4].replace("line:", "");
+
+						let position = new vscode.Position(parseInt(line) - 1, 5);
+						let range = document.getWordRangeAtPosition(position);
+						let info = new vscode.SymbolInformation(name, kind, range);
+
+						symbols.push(info);
+					}
+				}
+				return resolve(symbols);
+			});
+		});
+	}
+}
+
 function makeTags() {
 	let s = cp.exec(`ctags -R -e --languages=perl --extra=+q -f ${tagsFile}`, {
 		cwd: vscode.workspace.rootPath
@@ -75,6 +115,7 @@ function makeTags() {
 export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
+	context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
 
 	vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
 		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\'\"\,\.\<\>\/\?\s]+)/g,
