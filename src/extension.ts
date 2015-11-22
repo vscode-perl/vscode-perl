@@ -6,7 +6,7 @@ import * as cp from "child_process";
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
 let fileRegexp = /^(.*),\d+$/;
-let tagsFile = "TAGS";
+let tagsFile = "tags";
 
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
@@ -68,9 +68,10 @@ let symbolKindMap = {
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 	public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
 		return new Promise((resolve, reject) => {
-			let cmd = `ctags --languages=perl --fields=kn -f - ${document.fileName}`;
-			cp.exec(cmd, (error, stdout, stderr) => {
-				console.log(cmd, error, stdout.toString(), stderr.toString());
+			cp.execFile("ctags", ["--languages=perl", "--fields=kn", "-f", "-", document.fileName], {
+				cwd: vscode.workspace.rootPath
+			}, (error, stdout, stderr) => {
+				console.log(error, stdout.toString(), stderr.toString());
 				if (error) {
 					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
 					return reject("An error occured while generating tags");
@@ -101,7 +102,7 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 }
 
 function makeTags() {
-	let s = cp.exec(`ctags -R -e --languages=perl --extra=+q -f ${tagsFile}`, {
+	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
@@ -118,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
 
 	vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
-		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\'\"\,\.\<\>\/\?\s]+)/g,
+		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
 		comments: {
 			lineComment: "#",
 		},
