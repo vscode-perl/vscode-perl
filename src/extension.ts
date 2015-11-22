@@ -8,53 +8,64 @@ const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
+function parseLine(line: string): vscode.Location {
+	let match = line.split("\t");
+
+	let name = match[0];
+	let fileName = match[1];
+	let lineNo = parseInt(match[4].replace("line:", "")) - 1;
+
+	let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
+	let pos = new vscode.Position(lineNo, 0);
+
+	return new vscode.Location(uri, pos);
+}
+
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
 		return new Promise((resolve, reject) => {
 			let range = document.getWordRangeAtPosition(position);
 			let word = document.getText(range);
-			let wordRegexp = new RegExp(`\\x7f${word}\\x01(\\d+)`);
+			let fileName = document.fileName.replace(vscode.workspace.rootPath + "/", "");
+			console.log(`Loking for "${word}" in "${fileName}"`);
 
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
-
 			let stream = fs.createReadStream(tags);
-			stream.on("data", (chunk: Buffer) => {
-				let sections = chunk.toString().split("\x0c");
-				for (var i = 0; i < sections.length; i++) {
-					let section = sections[i];
-					let lines = section.split("\n");
-					for (var j = 0; j < lines.length; j++) {
-						var line = lines[j];
-						let match = line.match(wordRegexp);
-						if (match) {
-							let fileMatch = lines[1].match(fileRegexp);
-							if (!fileMatch) {
-								return reject("No file matched!");
-							}
+			let match: string;
+			let resolved = false;
 
-							let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileMatch[1]));
-							let pos = new vscode.Position(parseInt(match[1]) - 1, 0);
-							return resolve(new vscode.Location(uri, pos));
+			stream.on("data", (chunk: Buffer) => {
+				if (resolved) {
+					return;
+				};
+
+				let lines = chunk.toString().split("\n");
+				for (var i = 0; i < lines.length; i++) {
+					var line = lines[i];
+					if (line.startsWith(`${word}\t`)) {
+						if (line.startsWith(`${word}\t${fileName}`)) {
+							resolved = true;
+							return resolve(parseLine(line));
+						} else {
+							match = line;
 						}
-						if (token.isCancellationRequested) {
-							return reject("Cancelled.");
-						}
-					}
+					};
 				}
-				return reject("Could not find tag.");
 			});
 
 			stream.on("error", (error: Buffer) => {
+				console.error("error", error.toString());
 				vscode.window.showErrorMessage(`An error occured while generating tags: ${error.toString() }`);
-				console.error(error.toString());
 			});
 
-			stream.on("close", close => {
-				console.log(close);
-			});
-
-			stream.on("end", end => {
-				console.log(end);
+			stream.on("end", () => {
+				if (resolved) {
+					return;
+				} else if (match) {
+					return resolve(parseLine(match));
+				} else {
+					return reject("Could not find tag.");
+				}
 			});
 		});
 	}
@@ -71,7 +82,6 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 			cp.execFile("ctags", ["--languages=perl", "--fields=kn", "-f", "-", document.fileName], {
 				cwd: vscode.workspace.rootPath
 			}, (error, stdout, stderr) => {
-				console.log(error, stdout.toString(), stderr.toString());
 				if (error) {
 					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
 					return reject("An error occured while generating tags");
@@ -86,9 +96,9 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 					if (match.length === 5) {
 						let name = match[0];
 						let kind = symbolKindMap[match[3]];
-						let line = match[4].replace("line:", "");
+						let lineNo = parseInt(match[4].replace("line:", "")) - 1;
 
-						let position = new vscode.Position(parseInt(line) - 1, 5);
+						let position = new vscode.Position(lineNo, 1);
 						let range = document.getWordRangeAtPosition(position);
 						let info = new vscode.SymbolInformation(name, kind, range);
 
@@ -109,7 +119,6 @@ function makeTags() {
 			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
 		}
 		console.log("Tags generated.");
-		console.log(error, stdout.toString(), stderr.toString());
 	});
 };
 
