@@ -8,6 +8,17 @@ const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
+function makeTags() {
+	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "--extra=+q", "-f", tagsFile], {
+		cwd: vscode.workspace.rootPath
+	}, (error, stdout, stderr) => {
+		if (error) {
+			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+		}
+		console.log("Tags generated.");
+	});
+};
+
 function parseLine(line: string): vscode.Location {
 	let match = line.split("\t");
 
@@ -134,17 +145,6 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 		});
 	}
 }
-
-function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "--extra=+q", "-f", tagsFile], {
-		cwd: vscode.workspace.rootPath
-	}, (error, stdout, stderr) => {
-		if (error) {
-			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
-		}
-		console.log("Tags generated.");
-	});
-};
 
 export function activate(context: vscode.ExtensionContext) {
 
