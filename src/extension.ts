@@ -32,17 +32,20 @@ function parseLine(line: string): vscode.Location {
 	return new vscode.Location(uri, pos);
 }
 
-function getRangeBefore(range: vscode.Range, delta: number): vscode.Range {
-	return new vscode.Range(
-		range.start.with(range.start.line, range.start.character - delta),
-		range.start
+function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
+	let character = range.start.character - delta;
+	character = (character > 0) ? character : 0;
+	return new vscode.Position(
+		range.start.line,
+		character
 	);
 }
 
-function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
-	return new vscode.Position(
-		range.start.line,
-		range.start.character - delta
+function getRangeBefore(range: vscode.Range, delta: number): vscode.Range {
+	let point = getPointBefore(range, delta);
+	return new vscode.Range(
+		point,
+		range.start
 	);
 }
 
@@ -90,7 +93,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 			stream.on("error", (error: Buffer) => {
 				console.error("error", error.toString());
-				vscode.window.showErrorMessage(`An error occured while generating tags: ${error.toString() }`);
+				vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
 			});
 
 			stream.on("end", () => {
@@ -109,7 +112,8 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 let symbolKindMap = {
 	p: vscode.SymbolKind.Package,
 	s: vscode.SymbolKind.Function,
-	l: vscode.SymbolKind.Constant
+	l: vscode.SymbolKind.Constant,
+	c: vscode.SymbolKind.Constant
 };
 
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
