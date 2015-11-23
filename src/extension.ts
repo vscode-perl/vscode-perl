@@ -108,7 +108,8 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 let symbolKindMap = {
 	p: vscode.SymbolKind.Package,
-	s: vscode.SymbolKind.Function
+	s: vscode.SymbolKind.Function,
+	l: vscode.SymbolKind.Constant
 };
 
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
@@ -131,10 +132,13 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 					if (match.length === 5) {
 						let name = match[0];
 						let kind = symbolKindMap[match[3]];
+						if (typeof kind === "undefined") {
+							console.error(`Unknown symbol kind: ${match[3]}`);
+							kind = vscode.SymbolKind.Variable;
+						}
 						let lineNo = parseInt(match[4].replace("line:", "")) - 1;
+						let range = document.lineAt(lineNo).range;
 
-						let position = new vscode.Position(lineNo, 1);
-						let range = document.getWordRangeAtPosition(position);
 						let info = new vscode.SymbolInformation(name, kind, range);
 
 						symbols.push(info);
