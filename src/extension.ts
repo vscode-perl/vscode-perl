@@ -5,11 +5,16 @@ import * as cp from "child_process";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
+let extraTags = {
+	"use": 	"--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
+	"require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/r,require,requires\/"
+};
+
 let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
 function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", "--fields=kn", "--extra=+q", "-f", tagsFile], {
+	cp.execFile("ctags", ["-R", "--languages=perl", extraTags["use"], extraTags["require"], "--perl-kinds=s", "--fields=kn", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
