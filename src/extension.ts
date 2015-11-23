@@ -60,7 +60,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			while (separator === "::") {
 				wRange = document.getWordRangeAtPosition(getPointBefore(sRange, 1));
 				word = document.getText(wRange) + separator + word;
-				sRange = getRangeBefore(wRange, 2)
+				sRange = getRangeBefore(wRange, 2);
 				separator = document.getText(sRange);
 			}
 
