@@ -140,7 +140,8 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 							console.error(`Unknown symbol kind: ${match[3]}`);
 							kind = vscode.SymbolKind.Variable;
 						}
-						let lineNo = parseInt(match[4].replace("line:", "")) - 1;
+						let lineNo = parseInt(match[4].replace(/[^\d]/g, "")) - 1;
+
 						let range = document.lineAt(lineNo).range;
 
 						let info = new vscode.SymbolInformation(name, kind, range);
