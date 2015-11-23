@@ -185,16 +185,31 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			items.push(item);
 		}
 		return new Promise((resolve, reject) => {
-			cp.execFile("ctags", ["--languages=perl", "--fields=kn", "--extra=q", "-f", "-", document.fileName], {
-				cwd: vscode.workspace.rootPath
-			}, (error, stdout, stderr) => {
-				if (error) {
-					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
-					return reject("An error occured while generating tags");
-				}
+			// cp.execFile("ctags", ["--languages=perl", "--fields=kn", "--extra=q", "-f", "-", document.fileName], {
+			// 	cwd: vscode.workspace.rootPath
+			// }, (error, stdout, stderr) => {
+			// 	if (error) {
+			// 		vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+			// 		return reject("An error occured while generating tags");
+			// 	}
 
-				let lines = stdout.toString().split("\n");
+			// 	let lines = stdout.toString().split("\n");
 
+			// 	for (var i = 0; i < lines.length; i++) {
+			// 		let match = lines[i].split("\t");
+
+			// 		if (match.length === 5) {
+			// 			let item = new vscode.CompletionItem(match[0]);
+			// 			item.kind = itemKindMap[match[3]];
+			// 			items.push(item);
+			// 		}
+			// 	}
+			// 	return resolve(items);
+			// });
+			let tags = path.join(vscode.workspace.rootPath, tagsFile);
+			let stream = fs.createReadStream(tags);
+			stream.on("data", (chunk: Buffer) => {
+				let lines = chunk.toString().split("\n");
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
 
@@ -204,6 +219,16 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 						items.push(item);
 					}
 				}
+
+			});
+
+			stream.on("error", (error: Buffer) => {
+				console.error("error", error.toString());
+				vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
+				return resolve(items);
+			});
+
+			stream.on("end", () => {
 				return resolve(items);
 			});
 		});
