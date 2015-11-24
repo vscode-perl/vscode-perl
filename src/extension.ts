@@ -6,7 +6,7 @@ import * as cp from "child_process";
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
 let extraTags = {
-	"use": 	"--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
+	"use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
 	"require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/r,require,requires\/"
 };
 
@@ -14,7 +14,7 @@ let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
 function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", extraTags["use"], extraTags["require"], "--perl-kinds=s", "--fields=kn", "-f", tagsFile], {
+	cp.execFile("ctags", ["-R", "--languages=perl", extraTags["use"], extraTags["require"], "--perl-kinds=ps", "--extra=q", "--fields=kn", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
@@ -58,6 +58,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
 		return new Promise((resolve, reject) => {
 			let wRange = document.getWordRangeAtPosition(position);
+			if (typeof wRange === "undefined") {
+				return reject("No word at cursor!");
+			}
+
 			let word = document.getText(wRange);
 			let sRange = getRangeBefore(wRange, 2);
 			let separator = document.getText(sRange);
@@ -171,60 +175,67 @@ let itemKindMap = {
 	s: vscode.CompletionItemKind.Function
 };
 
+interface fileCompletionItems {
+	[index: string]: vscode.CompletionItem[];
+}
+
+interface filePackageMap {
+	[index: string]: string;
+}
+
 class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 	public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.CompletionItem[]> {
+		let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
+		console.log(currentFile);
 		let items: vscode.CompletionItem[] = [];
 		for (var i = 0; i < perlKeywords.length; i++) {
 			var item = new vscode.CompletionItem(perlKeywords[i]);
 			item.kind = vscode.CompletionItemKind.Keyword;
+			item.detail = "perl keyword";
 			items.push(item);
 		}
 		for (var i = 0; i < perlFunctions.length; i++) {
 			var item = new vscode.CompletionItem(perlFunctions[i]);
 			item.kind = vscode.CompletionItemKind.Function;
+			item.detail = "perl function";
 			items.push(item);
 		}
 		for (var i = 0; i < perlVariables.length; i++) {
 			var item = new vscode.CompletionItem(perlVariables[i]);
 			item.kind = vscode.CompletionItemKind.Variable;
+			item.detail = "perl variable";
 			items.push(item);
 		}
 		return new Promise((resolve, reject) => {
-			// cp.execFile("ctags", ["--languages=perl", "--fields=kn", "--extra=q", "-f", "-", document.fileName], {
-			// 	cwd: vscode.workspace.rootPath
-			// }, (error, stdout, stderr) => {
-			// 	if (error) {
-			// 		vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
-			// 		return reject("An error occured while generating tags");
-			// 	}
-
-			// 	let lines = stdout.toString().split("\n");
-
-			// 	for (var i = 0; i < lines.length; i++) {
-			// 		let match = lines[i].split("\t");
-
-			// 		if (match.length === 5) {
-			// 			let item = new vscode.CompletionItem(match[0]);
-			// 			item.kind = itemKindMap[match[3]];
-			// 			items.push(item);
-			// 		}
-			// 	}
-			// 	return resolve(items);
-			// });
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
+			let usedPackages: string[] = [];
+			let filePackage: filePackageMap = {};
+			let fileItems: fileCompletionItems = {};
+
 			stream.on("data", (chunk: Buffer) => {
 				let lines = chunk.toString().split("\n");
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
 
 					if (match.length === 5) {
+						fileItems[match[1]] = fileItems[match[1]] || [];
+
 						let item = new vscode.CompletionItem(match[0]);
 						item.kind = itemKindMap[match[3]];
-						items.push(item);
+						item.detail = match[1];
+
+						if (match[3] === "p") {
+							filePackage[match[0]] = match[1];
+							items.push(item);
+						} else if (match[3] === "u" && match[1] === currentFile) {
+							usedPackages.push(match[0]);
+						} else {
+							fileItems[match[1]].push(item);
+						}
+
 					}
 				}
-
 			});
 
 			stream.on("error", (error: Buffer) => {
@@ -234,6 +245,13 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			});
 
 			stream.on("end", () => {
+				console.log(filePackage, usedPackages);
+				usedPackages.forEach(pkg => {
+					let file = filePackage[pkg];
+					if (file) {
+						items = items.concat(fileItems[file]);
+					}
+				});
 				return resolve(items);
 			});
 		});
