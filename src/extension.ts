@@ -66,20 +66,24 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			let word = document.getText(wRange);
 			let sRange = getRangeBefore(wRange, 2);
 			let separator = document.getText(sRange);
+			let pkg = "";
 
 			while (separator === "::") {
 				wRange = document.getWordRangeAtPosition(getPointBefore(sRange, 1));
-				word = document.getText(wRange) + separator + word;
+				pkg = document.getText(wRange) + separator + pkg;
 				sRange = getRangeBefore(wRange, 2);
 				separator = document.getText(sRange);
 			}
+
+			pkg = pkg.replace(/::$/, "");
+			console.log(pkg);
 
 			let fileName = document.fileName.replace(vscode.workspace.rootPath + "/", "");
 			console.log(`Looking for "${word}" in "${fileName}"`);
 
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
-			let match: string;
+			let matches: string[] = [];
 			let resolved = false;
 
 			stream.on("data", (chunk: Buffer) => {
@@ -88,16 +92,14 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 				};
 
 				let lines = chunk.toString().split("\n");
-				for (var i = 0; i < lines.length; i++) {
-					var line = lines[i];
+				for (let i = 0; i < lines.length; i++) {
+					let line = lines[i];
 					if (line.startsWith(`${word}\t`)) {
-						if (line.startsWith(`${word}\t${fileName}`)) {
-							resolved = true;
-							return resolve(parseLine(line));
-						} else {
-							match = line;
-						}
-					};
+						matches.push(line);
+					} else if (line.startsWith(`${pkg}\t`)) {
+						let split = line.split("\t");
+						fileName = split[1];
+					}
 				}
 			});
 
@@ -107,13 +109,20 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			});
 
 			stream.on("end", () => {
-				if (resolved) {
-					return;
-				} else if (match) {
-					return resolve(parseLine(match));
-				} else {
-					return reject("Could not find tag.");
+				for (let i = 0; i < matches.length; i++) {
+					let match = matches[i].split("\t");
+
+					if (fileName === match[1]) {
+						let name = match[0];
+						let lineNo = parseInt(match[4].replace("line:", "")) - 1;
+
+						let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
+						let pos = new vscode.Position(lineNo, 0);
+
+						return resolve(new vscode.Location(uri, pos));
+					}
 				}
+				return reject("Could not find tag.");
 			});
 		});
 	}
@@ -233,7 +242,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 							item.kind = itemKindMap[kind];
 							item.detail = currentFile;
 							items.push(item);
-						} else if (kind === "u") {
+						} else if (kind === "u" || kind === "p") {
 							usedPackages.push(match[0]);
 						}
 					}
