@@ -7,14 +7,15 @@ const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
 let extraTags = {
 	"use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
-	"require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/r,require,requires\/"
+	"require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
+	"variable": "--regex-perl=\/^[ \\t]*my[ \\t(]+([$@%][A-Za-z][A-Za-z0-9:]+)[ \\t)]*\/\\1\/v,variable\/"
 };
 
 let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
 function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", extraTags["use"], extraTags["require"], "--perl-kinds=ps", "--extra=q", "--fields=kn", "-f", tagsFile], {
+	cp.execFile("ctags", ["-R", "--languages=perl", "--perl-kinds=ps", "--fields=kn", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
@@ -74,7 +75,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			}
 
 			let fileName = document.fileName.replace(vscode.workspace.rootPath + "/", "");
-			console.log(`Loking for "${word}" in "${fileName}"`);
+			console.log(`Looking for "${word}" in "${fileName}"`);
 
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
@@ -172,7 +173,9 @@ let perlVariables: string[] = ["$!", "$^RE_TRIE_MAXBUF", "$LAST_REGEXP_CODE_RESU
 
 let itemKindMap = {
 	p: vscode.CompletionItemKind.Module,
-	s: vscode.CompletionItemKind.Function
+	s: vscode.CompletionItemKind.Function,
+	r: vscode.CompletionItemKind.Reference,
+	v: vscode.CompletionItemKind.Variable
 };
 
 interface fileCompletionItems {
@@ -207,52 +210,82 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			items.push(item);
 		}
 		return new Promise((resolve, reject) => {
-			let tags = path.join(vscode.workspace.rootPath, tagsFile);
-			let stream = fs.createReadStream(tags);
-			let usedPackages: string[] = [];
-			let filePackage: filePackageMap = {};
-			let fileItems: fileCompletionItems = {};
+			cp.execFile("ctags", ["--languages=perl", extraTags["use"], extraTags["variable"], "--fields=kn", "-f", "-", document.fileName], {
+				cwd: vscode.workspace.rootPath
+			}, (error, stdout, stderr) => {
+				let usedPackages: string[] = [];
 
-			stream.on("data", (chunk: Buffer) => {
-				let lines = chunk.toString().split("\n");
+				if (error) {
+					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+					return reject("An error occured while generating tags");
+				}
+
+				//console.log(stdout);
+
+				let lines = stdout.toString().split("\n");
+
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
-
-					if (match.length === 5) {
-						fileItems[match[1]] = fileItems[match[1]] || [];
-
-						let item = new vscode.CompletionItem(match[0]);
-						item.kind = itemKindMap[match[3]];
-						item.detail = match[1];
-
-						if (match[3] === "p") {
-							filePackage[match[0]] = match[1];
+					if (match.length >= 5) {
+						let kind = match[match.length - 2];
+						if (kind === "v") {
+							let item = new vscode.CompletionItem(match[0]);
+							item.kind = itemKindMap[kind];
+							item.detail = currentFile;
 							items.push(item);
-						} else if (match[3] === "u" && match[1] === currentFile) {
+						} else if (kind === "u") {
 							usedPackages.push(match[0]);
-						} else {
-							fileItems[match[1]].push(item);
 						}
-
 					}
 				}
-			});
 
-			stream.on("error", (error: Buffer) => {
-				console.error("error", error.toString());
-				vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
-				return resolve(items);
-			});
+				let filePackage: filePackageMap = {};
+				let fileItems: fileCompletionItems = {};
 
-			stream.on("end", () => {
-				console.log(filePackage, usedPackages);
-				usedPackages.forEach(pkg => {
-					let file = filePackage[pkg];
-					if (file) {
-						items = items.concat(fileItems[file]);
+				let tags = path.join(vscode.workspace.rootPath, tagsFile);
+				let stream = fs.createReadStream(tags);
+				stream.on("data", (chunk: Buffer) => {
+					let lines = chunk.toString().split("\n");
+					for (var i = 0; i < lines.length; i++) {
+						let match = lines[i].split("\t");
+
+						if (match.length === 5) {
+							fileItems[match[1]] = fileItems[match[1]] || [];
+
+							let item = new vscode.CompletionItem(match[0]);
+							item.kind = itemKindMap[match[3]];
+							item.detail = match[1];
+
+							if (match[3] === "p") {
+								filePackage[match[0]] = match[1];
+								items.push(item);
+							} else {
+								fileItems[match[1]].push(item);
+							}
+
+						}
 					}
 				});
-				return resolve(items);
+
+				stream.on("error", (error: Buffer) => {
+					console.error("error", error.toString());
+					vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
+					return resolve(items);
+				});
+
+				stream.on("end", () => {
+					console.log(filePackage, usedPackages);
+					usedPackages.forEach(pkg => {
+						let file = filePackage[pkg];
+						if (fileItems[file]) {
+							fileItems[file].forEach(item => {
+								item.label = `${pkg}::${item.label}`;
+								items.push(item);
+							});
+						}
+					});
+					return resolve(items);
+				});
 			});
 		});
 	}
