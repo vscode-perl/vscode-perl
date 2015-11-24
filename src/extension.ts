@@ -5,6 +5,31 @@ import * as cp from "child_process";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
+let perlConfig: vscode.LanguageConfiguration = {
+	wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\#\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+	comments: {
+		lineComment: "#",
+	},
+	brackets: [
+		["{", "}"],
+		["[", "]"],
+		["(", ")"],
+		["|", "|"],
+		["/", "/"],
+	],
+	__characterPairSupport: {
+		autoClosingPairs: [
+			{ open: "/", close: "/" },
+			{ open: "|", close: "|" },
+			{ open: "{", close: "}" },
+			{ open: "[", close: "]" },
+			{ open: "(", close: ")" },
+			{ open: "\"", close: "\"", notIn: ["string"] },
+			{ open: "'", close: "'", notIn: ["string", "comment"] }
+		]
+	}
+};
+
 let extraTags = {
 	"use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
 	"require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
@@ -205,6 +230,13 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			item.detail = "perl variable";
 			items.push(item);
 		}
+		let word: RegExpExecArray;
+		while (word = perlConfig.wordPattern.exec(document.getText())) {
+			let item = new vscode.CompletionItem(word[0]);
+			item.kind = vscode.CompletionItemKind.Text;
+			items.push(item);
+		}
+
 		return new Promise((resolve, reject) => {
 			cp.execFile("ctags", ["--languages=perl", "-n", extraTags["use"], extraTags["variable"], "--fields=k", "-f", "-", document.fileName], {
 				cwd: vscode.workspace.rootPath
@@ -293,31 +325,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
 
-	vscode.languages.setLanguageConfiguration(PERL_MODE.language, {
-		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\#\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
-		comments: {
-			lineComment: "#",
-		},
-		brackets: [
-			["{", "}"],
-			["[", "]"],
-			["(", ")"],
-			["|", "|"],
-			["/", "/"],
-		],
-
-		__characterPairSupport: {
-			autoClosingPairs: [
-				{ open: "/", close: "/" },
-				{ open: "|", close: "|" },
-				{ open: "{", close: "}" },
-				{ open: "[", close: "]" },
-				{ open: "(", close: ")" },
-				{ open: "\"", close: "\"", notIn: ["string"] },
-				{ open: "'", close: "'", notIn: ["string", "comment"] }
-			]
-		}
-	});
+	vscode.languages.setLanguageConfiguration(PERL_MODE.language, perlConfig);
 
 	vscode.workspace.onDidSaveTextDocument(document => {
 		if (document.languageId == "perl") {
