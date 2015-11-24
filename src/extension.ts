@@ -15,7 +15,7 @@ let fileRegexp = /^(.*),\d+$/;
 let tagsFile = "tags";
 
 function makeTags() {
-	cp.execFile("ctags", ["-R", "--languages=perl", "--perl-kinds=ps", "--fields=kn", "-f", tagsFile], {
+	cp.execFile("ctags", ["-R", "-n", "--languages=perl", "--perl-kinds=ps", "--fields=k", "-f", tagsFile], {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
@@ -24,19 +24,6 @@ function makeTags() {
 		console.log("Tags generated.");
 	});
 };
-
-function parseLine(line: string): vscode.Location {
-	let match = line.split("\t");
-
-	let name = match[0];
-	let fileName = match[1];
-	let lineNo = parseInt(match[4].replace("line:", "")) - 1;
-
-	let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
-	let pos = new vscode.Position(lineNo, 0);
-
-	return new vscode.Location(uri, pos);
-}
 
 function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
 	let character = range.start.character - delta;
@@ -114,7 +101,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 					if (fileName === match[1]) {
 						let name = match[0];
-						let lineNo = parseInt(match[4].replace("line:", "")) - 1;
+						let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
 						let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
 						let pos = new vscode.Position(lineNo, 0);
@@ -138,7 +125,7 @@ let symbolKindMap = {
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 	public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
 		return new Promise((resolve, reject) => {
-			cp.execFile("ctags", ["--languages=perl", "--fields=kn", "-f", "-", document.fileName], {
+			cp.execFile("ctags", ["--languages=perl", "-n", "--fields=k", "-f", "-", document.fileName], {
 				cwd: vscode.workspace.rootPath
 			}, (error, stdout, stderr) => {
 				if (error) {
@@ -152,14 +139,14 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
 
-					if (match.length === 5) {
+					if (match.length === 4) {
 						let name = match[0];
 						let kind = symbolKindMap[match[3]];
 						if (typeof kind === "undefined") {
 							console.error(`Unknown symbol kind: ${match[3]}`);
 							kind = vscode.SymbolKind.Variable;
 						}
-						let lineNo = parseInt(match[4].replace(/[^\d]/g, "")) - 1;
+						let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
 						let range = document.lineAt(lineNo).range;
 
@@ -219,7 +206,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			items.push(item);
 		}
 		return new Promise((resolve, reject) => {
-			cp.execFile("ctags", ["--languages=perl", extraTags["use"], extraTags["variable"], "--fields=kn", "-f", "-", document.fileName], {
+			cp.execFile("ctags", ["--languages=perl", "-n", extraTags["use"], extraTags["variable"], "--fields=k", "-f", "-", document.fileName], {
 				cwd: vscode.workspace.rootPath
 			}, (error, stdout, stderr) => {
 				let usedPackages: string[] = [];
@@ -235,8 +222,8 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
-					if (match.length >= 5) {
-						let kind = match[match.length - 2];
+					if (match.length === 4) {
+						let kind = match[3];
 						if (kind === "v") {
 							let item = new vscode.CompletionItem(match[0]);
 							item.kind = itemKindMap[kind];
@@ -258,7 +245,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 					for (var i = 0; i < lines.length; i++) {
 						let match = lines[i].split("\t");
 
-						if (match.length === 5) {
+						if (match.length === 4) {
 							fileItems[match[1]] = fileItems[match[1]] || [];
 
 							let item = new vscode.CompletionItem(match[0]);
