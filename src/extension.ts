@@ -166,9 +166,9 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
 					if (match.length === 4) {
 						let name = match[0];
-						let kind = symbolKindMap[match[3]];
+						let kind = symbolKindMap[match[3].replace(/[^\w]/g, "")];
 						if (typeof kind === "undefined") {
-							console.error(`Unknown symbol kind: ${match[3]}`);
+							console.error("Unknown symbol kind:", match[3]);
 							kind = vscode.SymbolKind.Variable;
 						}
 						let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
@@ -231,14 +231,22 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 			items.push(item);
 		}
 		let word: RegExpExecArray;
-		while (word = perlConfig.wordPattern.exec(document.getText())) {
-			let item = new vscode.CompletionItem(word[0]);
+		let text = document.getText();
+		let words = {};
+		while (word = perlConfig.wordPattern.exec(text)) {
+			words[word[0]] = true;
+		}
+
+		let keys = Object.keys(words);
+		console.log(keys.length);
+		for (var i = 0; i < keys.length; i++) {
+			let item = new vscode.CompletionItem(keys[i]);
 			item.kind = vscode.CompletionItemKind.Text;
 			items.push(item);
 		}
 
 		return new Promise((resolve, reject) => {
-			cp.execFile("ctags", ["--languages=perl", "-n", extraTags["use"], extraTags["variable"], "--fields=k", "-f", "-", document.fileName], {
+			cp.execFile("ctags", ["--languages=perl", "-n", extraTags["use"], "--fields=k", "-f", "-", document.fileName], {
 				cwd: vscode.workspace.rootPath
 			}, (error, stdout, stderr) => {
 				let usedPackages: string[] = [];
@@ -255,13 +263,8 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 				for (var i = 0; i < lines.length; i++) {
 					let match = lines[i].split("\t");
 					if (match.length === 4) {
-						let kind = match[3];
-						if (kind === "v") {
-							let item = new vscode.CompletionItem(match[0]);
-							item.kind = itemKindMap[kind];
-							item.detail = currentFile;
-							items.push(item);
-						} else if (kind === "u" || kind === "p") {
+						let kind = match[3].replace(/[^\w]/g, "");
+						if (kind === "u" || kind === "p") {
 							usedPackages.push(match[0]);
 						}
 					}
@@ -281,10 +284,10 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 							fileItems[match[1]] = fileItems[match[1]] || [];
 
 							let item = new vscode.CompletionItem(match[0]);
-							item.kind = itemKindMap[match[3]];
+							item.kind = itemKindMap[match[3].replace(/[^\w]/g, "")];
 							item.detail = match[1];
 
-							if (match[3] === "p") {
+							if (match[3].replace(/[^\w]/g, "") === "p") {
 								filePackage[match[0]] = match[1];
 								items.push(item);
 							} else {
@@ -302,7 +305,6 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 				});
 
 				stream.on("end", () => {
-					console.log(filePackage, usedPackages);
 					usedPackages.forEach(pkg => {
 						let file = filePackage[pkg];
 						if (fileItems[file]) {
