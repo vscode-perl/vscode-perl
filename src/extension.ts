@@ -15,11 +15,9 @@ let perlConfig: vscode.LanguageConfiguration = {
 		["[", "]"],
 		["(", ")"],
 		["|", "|"],
-		["/", "/"],
 	],
 	__characterPairSupport: {
 		autoClosingPairs: [
-			{ open: "/", close: "/" },
 			{ open: "|", close: "|" },
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
