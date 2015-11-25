@@ -90,7 +90,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			pkg = pkg.replace(/::$/, "");
 			console.log(pkg);
 
-			let fileName = document.fileName.replace(vscode.workspace.rootPath + "/", "");
+			let fileName = document.fileName;
 			console.log(`Looking for "${word}" in "${fileName}"`);
 
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
@@ -121,14 +121,15 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			});
 
 			stream.on("end", () => {
+				fileName = fileName.replace(vscode.workspace.rootPath, ".");
 				for (let i = 0; i < matches.length; i++) {
 					let match = matches[i].split("\t");
 
-					if (fileName === match[1]) {
+					if (fileName === match[1] || (i + 1 === matches.length)) {
 						let name = match[0];
 						let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-						let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, fileName));
+						let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, match[1]));
 						let pos = new vscode.Position(lineNo, 0);
 
 						return resolve(new vscode.Location(uri, pos));
