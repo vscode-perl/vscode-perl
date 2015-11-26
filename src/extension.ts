@@ -332,8 +332,9 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
 					range.end.with(range.end.line, Number.MAX_VALUE)
 				);
 			}
+
 			let newText = "";
-			let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws"]);
+			let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]);
 			child.stdin.write(document.getText(range));
 			child.stdin.end();
 
