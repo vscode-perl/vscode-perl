@@ -322,13 +322,49 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 	}
 };
 
+
+class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFormattingEditProvider {
+	public provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Thenable<vscode.TextEdit[]> {
+		return new Promise((resolve, reject) => {
+			if (range.start.line != range.end.line) {
+				range = range.with(
+					range.start.with(range.start.line, 0),
+					range.end.with(range.end.line, Number.MAX_VALUE)
+				);
+			}
+			let newText = "";
+			let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws"]);
+			child.stdin.write(document.getText(range));
+			child.stdin.end();
+
+			child.stdout.on("data", (out: Buffer) => {
+				newText += out.toString();
+			});
+
+			child.stderr.on("data", (out: Buffer) => {
+				console.error("err", out.toString());
+			});
+
+			child.on("error", (out: Buffer) => {
+				console.error(out);
+			});
+
+			child.on("close", () => {
+				console.log("close!");
+				resolve([new vscode.TextEdit(range, newText)]);
+			});
+		});
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
+
+	vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
 	context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
-
-	vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
+	context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(PERL_MODE, new PerlDocumentRangeFormattingEditProvider()));
 
 	vscode.workspace.onDidSaveTextDocument(document => {
 		if (document.languageId == "perl") {
