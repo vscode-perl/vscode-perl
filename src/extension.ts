@@ -5,7 +5,7 @@ import * as cp from "child_process";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
-let perlConfig: vscode.LanguageConfiguration = {
+const PERL_CONFIG: vscode.LanguageConfiguration = {
 	wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\#\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
 	comments: {
 		lineComment: "#",
@@ -15,6 +15,7 @@ let perlConfig: vscode.LanguageConfiguration = {
 		["[", "]"],
 		["(", ")"],
 		["|", "|"],
+		["/", "/"],
 	],
 	__characterPairSupport: {
 		autoClosingPairs: [
@@ -22,6 +23,7 @@ let perlConfig: vscode.LanguageConfiguration = {
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
+			{ open: "|", close: "|", notIn: ["string"] },
 			{ open: "\"", close: "\"", notIn: ["string"] },
 			{ open: "'", close: "'", notIn: ["string", "comment"] }
 		]
@@ -232,7 +234,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 		let word: RegExpExecArray;
 		let text = document.getText();
 		let words = {};
-		while (word = perlConfig.wordPattern.exec(text)) {
+		while (word = PERL_CONFIG.wordPattern.exec(text)) {
 			words[word[0]] = true;
 		}
 
@@ -326,7 +328,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
 
-	vscode.languages.setLanguageConfiguration(PERL_MODE.language, perlConfig);
+	vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
 
 	vscode.workspace.onDidSaveTextDocument(document => {
 		if (document.languageId == "perl") {
