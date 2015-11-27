@@ -28,6 +28,6 @@
   "devDependencies": {
     "tslint": "^3.0.0",
     "typescript": "^1.6.2",
-    "vscode": "^0.10.4"
+    "vscode": "^0.10.6"
   }
 }

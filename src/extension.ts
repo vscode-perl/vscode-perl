@@ -69,12 +69,13 @@ function getRangeBefore(range: vscode.Range, delta: number): vscode.Range {
 
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
-		return new Promise((resolve, reject) => {
-			let wRange = document.getWordRangeAtPosition(position);
-			if (typeof wRange === "undefined") {
-				return reject("No word at cursor!");
-			}
+		let wRange = document.getWordRangeAtPosition(position);
+		if (typeof wRange === "undefined") {
+			console.error("No word at pos!");
+			return null;
+		}
 
+		return new Promise((resolve, reject) => {
 			let word = document.getText(wRange);
 			let sRange = getRangeBefore(wRange, 2);
 			let separator = document.getText(sRange);
@@ -96,13 +97,8 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
 			let matches: string[] = [];
-			let resolved = false;
 
 			stream.on("data", (chunk: Buffer) => {
-				if (resolved) {
-					return;
-				};
-
 				let lines = chunk.toString().split("\n");
 				for (let i = 0; i < lines.length; i++) {
 					let line = lines[i];
@@ -254,7 +250,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 				if (error) {
 					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
-					return reject("An error occured while generating tags");
+					return "An error occured while generating tags";
 				}
 
 				//console.log(stdout);
@@ -334,7 +330,7 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
 			}
 
 			let newText = "";
-			let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]);
+			let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); //, "-otr"
 			child.stdin.write(document.getText(range));
 			child.stdin.end();
 
