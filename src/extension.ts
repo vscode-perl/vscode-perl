@@ -221,6 +221,9 @@ interface filePackageMap {
 
 class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 	public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.CompletionItem[]> {
+		let range = document.getWordRangeAtPosition(position);
+		let pkg = getPackageBefore(document, range);
+
 		let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
 		console.log(currentFile);
 		let items: vscode.CompletionItem[] = [];
@@ -247,14 +250,6 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 		let words = {};
 		while (word = PERL_CONFIG.wordPattern.exec(text)) {
 			words[word[0]] = true;
-		}
-
-		let keys = Object.keys(words);
-		console.log(keys.length);
-		for (var i = 0; i < keys.length; i++) {
-			let item = new vscode.CompletionItem(keys[i]);
-			item.kind = vscode.CompletionItemKind.Text;
-			items.push(item);
 		}
 
 		return new Promise((resolve, reject) => {
@@ -317,15 +312,39 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 				});
 
 				stream.on("end", () => {
-					usedPackages.forEach(pkg => {
+					if (filePackage[pkg]) {
 						let file = filePackage[pkg];
 						if (fileItems[file]) {
 							fileItems[file].forEach(item => {
+								delete words[item.label];
+
+								item.insertText = item.label;
 								item.label = `${pkg}::${item.label}`;
 								items.push(item);
 							});
 						}
-					});
+					} else {
+						usedPackages.forEach(usedPkg => {
+							let file = filePackage[usedPkg];
+							if (fileItems[file]) {
+								fileItems[file].forEach(item => {
+									delete words[item.label];
+
+									item.label = `${usedPkg}::${item.label}`;
+									items.push(item);
+								});
+							}
+						});
+					}
+
+					let keys = Object.keys(words);
+					console.log(keys.length);
+					for (var i = 0; i < keys.length; i++) {
+						let item = new vscode.CompletionItem(keys[i]);
+						item.kind = vscode.CompletionItemKind.Text;
+						items.push(item);
+					}
+
 					return resolve(items);
 				});
 			});
