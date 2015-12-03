@@ -67,28 +67,43 @@ function getRangeBefore(range: vscode.Range, delta: number): vscode.Range {
 	);
 }
 
+function getPackageBefore(document: vscode.TextDocument, range: vscode.Range): string {
+	let separatorRange = getRangeBefore(range, 2);
+	let separator = document.getText(separatorRange);
+	let pkg = "";
+
+	while (separator === "::") {
+		range = document.getWordRangeAtPosition(getPointBefore(separatorRange, 1));
+		pkg = document.getText(range) + separator + pkg;
+		separatorRange = getRangeBefore(range, 2);
+		separator = document.getText(separatorRange);
+	}
+
+	return pkg.replace(/::$/, "");
+}
+
+function getMatchLocation(line: string): vscode.Location {
+	let match = line.split("\t");
+	let name = match[0];
+	let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
+
+	let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, match[1]));
+	let pos = new vscode.Position(lineNo, 0);
+
+	return new vscode.Location(uri, pos);
+}
+
 class PerlDefinitionProvider implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
-		let wRange = document.getWordRangeAtPosition(position);
-		if (typeof wRange === "undefined") {
+		let wordRange = document.getWordRangeAtPosition(position);
+		if (typeof wordRange === "undefined") {
 			console.error("No word at pos!");
 			return null;
 		}
 
 		return new Promise((resolve, reject) => {
-			let word = document.getText(wRange);
-			let sRange = getRangeBefore(wRange, 2);
-			let separator = document.getText(sRange);
-			let pkg = "";
-
-			while (separator === "::") {
-				wRange = document.getWordRangeAtPosition(getPointBefore(sRange, 1));
-				pkg = document.getText(wRange) + separator + pkg;
-				sRange = getRangeBefore(wRange, 2);
-				separator = document.getText(sRange);
-			}
-
-			pkg = pkg.replace(/::$/, "");
+			let word = document.getText(wordRange);
+			let pkg = getPackageBefore(document, wordRange);
 			console.log(pkg);
 
 			let fileName = document.fileName;
@@ -97,6 +112,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
 			let matches: string[] = [];
+			let pkgMatch: string;
 
 			stream.on("data", (chunk: Buffer) => {
 				let lines = chunk.toString().split("\n");
@@ -107,6 +123,8 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 					} else if (line.startsWith(`${pkg}\t`)) {
 						let split = line.split("\t");
 						fileName = split[1];
+					} else if (line.startsWith(`${pkg}::${word}\t`)) {
+						pkgMatch = line;
 					}
 				}
 			});
@@ -118,17 +136,14 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 			stream.on("end", () => {
 				fileName = fileName.replace(vscode.workspace.rootPath, ".");
+				if (pkgMatch) {
+					return resolve(getMatchLocation(pkgMatch));
+				}
 				for (let i = 0; i < matches.length; i++) {
 					let match = matches[i].split("\t");
 
 					if (fileName === match[1] || (i + 1 === matches.length)) {
-						let name = match[0];
-						let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
-
-						let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, match[1]));
-						let pos = new vscode.Position(lineNo, 0);
-
-						return resolve(new vscode.Location(uri, pos));
+						return resolve(getMatchLocation(matches[i]));
 					}
 				}
 				return reject("Could not find tag.");
@@ -347,7 +362,7 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
 			});
 
 			child.on("close", () => {
-				console.log("close!");
+				newText = newText.slice(0, -2); // remove trailing newline
 				resolve([new vscode.TextEdit(range, newText)]);
 			});
 		});
