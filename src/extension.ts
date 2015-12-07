@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
-import * as path from "path";
-import * as fs from "fs";
 import * as cp from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as vscode from "vscode";
 
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
