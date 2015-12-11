@@ -44,7 +44,7 @@ function makeTags() {
 		cwd: vscode.workspace.rootPath
 	}, (error, stdout, stderr) => {
 		if (error) {
-			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+			vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
 		}
 		console.log("Tags generated.");
 	});
@@ -131,7 +131,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 
 			stream.on("error", (error: Buffer) => {
 				console.error("error", error.toString());
-				vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
+				vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString()}`);
 			});
 
 			stream.on("end", () => {
@@ -166,7 +166,7 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 				cwd: vscode.workspace.rootPath
 			}, (error, stdout, stderr) => {
 				if (error) {
-					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
 					return reject("An error occured while generating tags");
 				}
 
@@ -222,7 +222,14 @@ interface filePackageMap {
 class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 	public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.CompletionItem[]> {
 		let range = document.getWordRangeAtPosition(position);
+		let currentWord = document.getText(range);
+
 		let pkg = getPackageBefore(document, range);
+		let separator = document.getText(getRangeBefore(range, 2));
+
+		let isMethod = (separator === "->");
+
+		console.log("isMethod: ", isMethod);
 
 		let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
 		console.log(currentFile);
@@ -259,7 +266,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 				let usedPackages: string[] = [];
 
 				if (error) {
-					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString() }`);
+					vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
 					return "An error occured while generating tags";
 				}
 
@@ -277,6 +284,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 					}
 				}
 
+				let methodFiles: filePackageMap = {};
 				let filePackage: filePackageMap = {};
 				let fileItems: fileCompletionItems = {};
 
@@ -299,6 +307,10 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 								items.push(item);
 							} else {
 								fileItems[match[1]].push(item);
+
+								if (match[0] === "new") {
+									methodFiles[match[1]] = "1";
+								}
 							}
 
 						}
@@ -307,11 +319,12 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 				stream.on("error", (error: Buffer) => {
 					console.error("error", error.toString());
-					vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString() }`);
+					vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString()}`);
 					return resolve(items);
 				});
 
 				stream.on("end", () => {
+					delete words[currentWord];
 					if (filePackage[pkg]) {
 						let file = filePackage[pkg];
 						if (fileItems[file]) {
@@ -320,6 +333,14 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 								item.insertText = item.label;
 								item.label = `${pkg}::${item.label}`;
+								items.push(item);
+							});
+						}
+					} else if (isMethod) {
+						let keys = Object.keys(methodFiles);
+						for (var i = 0; i < keys.length; i++) {
+							fileItems[keys[i]].forEach(item => {
+								delete words[item.label];
 								items.push(item);
 							});
 						}
