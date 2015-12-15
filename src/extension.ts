@@ -287,6 +287,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 				let methodFiles: filePackageMap = {};
 				let filePackage: filePackageMap = {};
 				let fileItems: fileCompletionItems = {};
+				let packageItems: vscode.CompletionItem[] = [];
 
 				let tags = path.join(vscode.workspace.rootPath, tagsFile);
 				let stream = fs.createReadStream(tags);
@@ -304,7 +305,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 							if (match[3].replace(/[^\w]/g, "") === "p") {
 								filePackage[match[0]] = match[1];
-								items.push(item);
+								packageItems.push(item);
 							} else {
 								fileItems[match[1]].push(item);
 
@@ -345,6 +346,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 							});
 						}
 					} else {
+						items = items.concat(packageItems);
 						usedPackages.forEach(usedPkg => {
 							let file = filePackage[usedPkg];
 							if (fileItems[file]) {
