@@ -104,10 +104,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
 		return new Promise((resolve, reject) => {
 			let word = document.getText(wordRange);
 			let pkg = getPackageBefore(document, wordRange);
-			console.log(pkg);
+			//console.log(pkg);
 
 			let fileName = document.fileName;
-			console.log(`Looking for "${word}" in "${fileName}"`);
+			//console.log(`Looking for "${word}" in "${fileName}"`);
 
 			let tags = path.join(vscode.workspace.rootPath, tagsFile);
 			let stream = fs.createReadStream(tags);
@@ -229,10 +229,10 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
 		let isMethod = (separator === "->");
 
-		console.log("isMethod: ", isMethod);
+		//console.log("isMethod: ", isMethod);
 
 		let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
-		console.log(currentFile);
+		//console.log(currentFile);
 		let items: vscode.CompletionItem[] = [];
 		for (var i = 0; i < perlKeywords.length; i++) {
 			var item = new vscode.CompletionItem(perlKeywords[i]);
@@ -361,7 +361,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 					}
 
 					let keys = Object.keys(words);
-					console.log(keys.length);
+					//console.log(keys.length);
 					for (var i = 0; i < keys.length; i++) {
 						let item = new vscode.CompletionItem(keys[i]);
 						item.kind = vscode.CompletionItemKind.Text;
