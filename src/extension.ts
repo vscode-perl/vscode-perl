@@ -115,14 +115,16 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
             let pkgMatch: string;
 
             stream.on("data", (chunk: Buffer) => {
-                let lines = chunk.toString().split("\n");
+                let lines = chunk.toString().split(/\r?\n/);
                 for (let i = 0; i < lines.length; i++) {
                     let line = lines[i];
                     if (line.startsWith(`${word}\t`)) {
                         matches.push(line);
                     } else if (line.startsWith(`${pkg}\t`)) {
                         let split = line.split("\t");
-                        fileName = split[1];
+                        if (split[3] === "p") {
+                            fileName = split[1];
+                        }
                     } else if (line.startsWith(`${pkg}::${word}\t`)) {
                         pkgMatch = line;
                     }
@@ -146,6 +148,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
                         return resolve(getMatchLocation(matches[i]));
                     }
                 }
+                console.log("Could not find tag");
                 return reject("Could not find tag.");
             });
         });
