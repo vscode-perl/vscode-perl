@@ -231,35 +231,39 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         let separator = document.getText(getRangeBefore(range, 2));
 
         let isMethod = (separator === "->");
-
         // console.log("isMethod: ", isMethod);
 
         let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
         // console.log(currentFile);
+
+        let word: RegExpExecArray;
+        let text = document.getText();
+        let words = {};
+        while (word = PERL_CONFIG.wordPattern.exec(text)) {
+            words[word[0]] = true;
+        }
+
         let items: vscode.CompletionItem[] = [];
         for (let i = 0; i < perlKeywords.length; i++) {
+            delete words[perlKeywords[i]];
             let item = new vscode.CompletionItem(perlKeywords[i]);
             item.kind = vscode.CompletionItemKind.Keyword;
             item.detail = "perl keyword";
             items.push(item);
         }
         for (let i = 0; i < perlFunctions.length; i++) {
+            delete words[perlFunctions[i]];
             let item = new vscode.CompletionItem(perlFunctions[i]);
             item.kind = vscode.CompletionItemKind.Function;
             item.detail = "perl function";
             items.push(item);
         }
         for (let i = 0; i < perlVariables.length; i++) {
+            delete words[perlVariables[i]];
             let item = new vscode.CompletionItem(perlVariables[i]);
             item.kind = vscode.CompletionItemKind.Variable;
             item.detail = "perl variable";
             items.push(item);
-        }
-        let word: RegExpExecArray;
-        let text = document.getText();
-        let words = {};
-        while (word = PERL_CONFIG.wordPattern.exec(text)) {
-            words[word[0]] = true;
         }
 
         return new Promise((resolve, reject) => {
