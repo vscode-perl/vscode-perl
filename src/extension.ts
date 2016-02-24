@@ -201,6 +201,51 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     }
 }
 
+class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
+    public provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
+        return new Promise((resolve, reject) => {
+            let symbols: vscode.SymbolInformation[] = [];
+            let tags = path.join(vscode.workspace.rootPath, tagsFile);
+            let stream = fs.createReadStream(tags);
+
+            stream.on("data", (chunk: Buffer) => {
+                let lines = chunk.toString().split("\n");
+                for (let i = 0; i < lines.length; i++) {
+                    let match = lines[i].split("\t");
+
+                    if (match.length === 4) {
+                        let name = match[0];
+                        let kind = symbolKindMap[match[3].replace(/[^\w]/g, "")];
+                        if (typeof kind === "undefined") {
+                            console.error("Unknown symbol kind:", match[3]);
+                            kind = vscode.SymbolKind.Variable;
+                        }
+                        let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
+
+                        let range = new vscode.Range(lineNo, 0, lineNo, 0);
+
+                        let file = match[1].replace(/^\.\\/, "");
+                        let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file);
+
+                        let info = new vscode.SymbolInformation(name, kind, range, uri);
+
+                        symbols.push(info);
+                    }
+                }
+            });
+
+            stream.on("error", (error: Buffer) => {
+                return resolve(symbols);
+            });
+
+            stream.on("end", () => {
+                return resolve(symbols);
+            });
+        });
+    }
+}
+
+
 let perlKeywords: string[] = ["__DATA__", "else", "lock", "qw", "__END__", "elsif", "lt", "qx", "__FILE__", "eq", "m", "s", "__LINE__", "exp", "ne", "sub", "__PACKAGE__", "for", "no", "tr", "and", "foreach", "or", "unless", "cmp", "ge", "package", "until", "continue", "gt", "q", "while", "CORE", "if", "qq", "xor", "do", "le", "qr", "y"];
 
 let perlFunctions: string[] = ["-A", "END", "length", "setpgrp", "-B", "endgrent", "link", "setpriority", "-b", "endhostent", "listen", "setprotoent", "-C", "endnetent", "local", "setpwent", "-c", "endprotoent", "localtime", "setservent", "-d", "endpwent", "log", "setsockopt", "-e", "endservent", "lstat", "shift", "-f", "eof", "map", "shmctl", "-g", "eval", "mkdir", "shmget", "-k", "exec", "msgctl", "shmread", "-l", "exists", "msgget", "shmwrite", "-M", "exit", "msgrcv", "shutdown", "-O", "fcntl", "msgsnd", "sin", "-o", "fileno", "my", "sleep", "-p", "flock", "next", "socket", "-r", "fork", "not", "socketpair", "-R", "format", "oct", "sort", "-S", "formline", "open", "splice", "-s", "getc", "opendir", "split", "-T", "getgrent", "ord", "sprintf", "-t", "getgrgid", "our", "sqrt", "-u", "getgrnam", "pack", "srand", "-w", "gethostbyaddr", "pipe", "stat", "-W", "gethostbyname", "pop", "state", "-X", "gethostent", "pos", "study", "-x", "getlogin", "print", "substr", "-z", "getnetbyaddr", "printf", "symlink", "abs", "getnetbyname", "prototype", "syscall", "accept", "getnetent", "push", "sysopen", "alarm", "getpeername", "quotemeta", "sysread", "atan2", "getpgrp", "rand", "sysseek", "AUTOLOAD", "getppid", "read", "system", "BEGIN", "getpriority", "readdir", "syswrite", "bind", "getprotobyname", "readline", "tell", "binmode", "getprotobynumber", "readlink", "telldir", "bless", "getprotoent", "readpipe", "tie", "break", "getpwent", "recv", "tied", "caller", "getpwnam", "redo", "time", "chdir", "getpwuid", "ref", "times", "CHECK", "getservbyname", "rename", "truncate", "chmod", "getservbyport", "require", "uc", "chomp", "getservent", "reset", "ucfirst", "chop", "getsockname", "return", "umask", "chown", "getsockopt", "reverse", "undef", "chr", "glob", "rewinddir", "UNITCHECK", "chroot", "gmtime", "rindex", "unlink", "close", "goto", "rmdir", "unpack", "closedir", "grep", "say", "unshift", "connect", "hex", "scalar", "untie", "cos", "index", "seek", "use", "crypt", "INIT", "seekdir", "utime", "dbmclose", "int", "select", "values", "dbmopen", "ioctl", "semctl", "vec", "defined", "join", "semget", "wait", "delete", "keys", "semop", "waitpid", "DESTROY", "kill", "send", "wantarray", "die", "last", "setgrent", "warn", "dump", "lc", "sethostent", "write", "each", "lcfirst", "setnetent"];
@@ -423,8 +468,11 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
 
     context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
-    context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
+
+    context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
+    context.subscriptions.push(vscode.languages.registerWorkspaceSymbolProvider(new PerlWorkspaceSymbolProvider()));
+
     context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(PERL_MODE, new PerlDocumentRangeFormattingEditProvider()));
 
     vscode.workspace.onDidSaveTextDocument(document => {
