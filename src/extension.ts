@@ -225,7 +225,7 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
                         let range = new vscode.Range(lineNo, 0, lineNo, 0);
 
                         let file = match[1].replace(/^\.\\/, "");
-                        let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file);
+                        let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file));
 
                         let info = new vscode.SymbolInformation(name, kind, range, uri);
 
