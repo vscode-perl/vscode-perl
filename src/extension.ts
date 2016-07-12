@@ -93,7 +93,7 @@ function getMatchLocation(line: string): vscode.Location {
     return new vscode.Location(uri, pos);
 }
 
-class PerlDefinitionProvider implements vscode.DefinitionProvider {
+class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider {
     public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
         let wordRange = document.getWordRangeAtPosition(position);
         if (typeof wordRange === "undefined") {
@@ -152,6 +152,31 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider {
                 return reject("Could not find tag.");
             });
         });
+    }
+
+    public provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Hover> {
+        return this.provideDefinition(document, position, token)
+            .then(location => {
+                return new Promise((resolve, reject) => {
+                    fs.readFile(location.uri.fsPath, (err, data) => {
+                        if (err) {
+                            reject(err);
+                        }
+                        let lines = data.toString().split(/\r?\n/);
+                        let value = '';
+
+                        let end = Math.min(lines.length, location.range.end.line + 5);
+                        let index = location.range.start.line;
+                        while (index < end) {
+                            value += lines[index] + '\n';
+                            index++;
+                        }
+
+                        let hover = new vscode.Hover({ language: 'perl', value: value, });
+                        resolve(hover);
+                    })
+                });
+            });
     }
 }
 
@@ -470,7 +495,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
 
-    context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, new PerlDefinitionProvider()));
+    let definitions = new PerlDefinitionProvider();
+    context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, definitions));
+    context.subscriptions.push(vscode.languages.registerHoverProvider(PERL_MODE, definitions));
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
 
     context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
