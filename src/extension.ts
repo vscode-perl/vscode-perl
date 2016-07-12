@@ -270,15 +270,13 @@ interface FilePackageMap {
 class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
     public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.CompletionItem[]> {
         let range = document.getWordRangeAtPosition(position);
-        let currentWord = document.getText(range);
-
         let pkg = getPackageBefore(document, range);
         let separator = document.getText(getRangeBefore(range, 2));
 
         let isMethod = (separator === "->");
         // console.log("isMethod: ", isMethod);
 
-        let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
+        // let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
         // console.log(currentFile);
 
         let word: RegExpExecArray;
@@ -287,6 +285,9 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         while (word = PERL_CONFIG.wordPattern.exec(text)) {
             words[word[0]] = true;
         }
+
+        let currentWord = document.getText(range);
+        delete words[currentWord];
 
         let items: vscode.CompletionItem[] = [];
         for (let i = 0; i < perlKeywords.length; i++) {
@@ -377,7 +378,6 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                 });
 
                 stream.on("end", () => {
-                    delete words[currentWord];
                     if (filePackage[pkg]) {
                         let file = filePackage[pkg];
                         if (fileItems[file]) {
@@ -398,7 +398,10 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                             });
                         }
                     } else {
-                        items = items.concat(packageItems);
+                        packageItems.forEach(item => {
+                            delete words[item.label];
+                            items.push(item);
+                        });
                         usedPackages.forEach(usedPkg => {
                             let file = filePackage[usedPkg];
                             if (fileItems[file]) {
