@@ -4,39 +4,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 import * as ctags from "./ctags";
-
-const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
-
-const PERL_CONFIG: vscode.LanguageConfiguration = {
-    wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\#\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
-    comments: {
-        lineComment: "#",
-    },
-    brackets: [
-        ["{", "}"],
-        ["[", "]"],
-        ["(", ")"],
-        ["|", "|"],
-        ["/", "/"],
-    ],
-    __characterPairSupport: {
-        autoClosingPairs: [
-            { open: "|", close: "|" },
-            { open: "{", close: "}" },
-            { open: "[", close: "]" },
-            { open: "(", close: ")" },
-            { open: "|", close: "|", notIn: ["string"] },
-            { open: "\"", close: "\"", notIn: ["string"] },
-            { open: "'", close: "'", notIn: ["string", "comment"] }
-        ]
-    }
-};
-
-let extraTags = {
-    "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
-    "require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
-    "variable": "--regex-perl=\/^[ \\t]*my[ \\t(]+([$@%][A-Za-z][A-Za-z0-9:]+)[ \\t)]*\/\\1\/v,variable\/"
-};
+import * as perl from "./perl";
 
 function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
     let character = range.start.character - delta;
@@ -211,13 +179,6 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
     }
 }
 
-let symbolKindMap = {
-    p: vscode.SymbolKind.Package,
-    s: vscode.SymbolKind.Function,
-    l: vscode.SymbolKind.Constant,
-    c: vscode.SymbolKind.Constant
-};
-
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
         return new Promise((resolve, reject) => {
@@ -235,7 +196,7 @@ class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
                     if (match.length === 4) {
                         let name = match[0];
-                        let kind = symbolKindMap[match[3].replace(/[^\w]/g, "")];
+                        let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
                         if (typeof kind === "undefined") {
                             console.error("Unknown symbol kind:", match[3]);
                             kind = vscode.SymbolKind.Variable;
@@ -266,7 +227,7 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
 
                     if (match.length === 4) {
                         let name = match[0];
-                        let kind = symbolKindMap[match[3].replace(/[^\w]/g, "")];
+                        let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
                         if (typeof kind === "undefined") {
                             console.error("Unknown symbol kind:", match[3]);
                             kind = vscode.SymbolKind.Variable;
@@ -292,20 +253,6 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
     }
 }
 
-
-let perlKeywords: string[] = ["__DATA__", "else", "lock", "qw", "__END__", "elsif", "lt", "qx", "__FILE__", "eq", "m", "s", "__LINE__", "exp", "ne", "sub", "__PACKAGE__", "for", "no", "tr", "and", "foreach", "or", "unless", "cmp", "ge", "package", "until", "continue", "gt", "q", "while", "CORE", "if", "qq", "xor", "do", "le", "qr", "y"];
-
-let perlFunctions: string[] = ["-A", "END", "length", "setpgrp", "-B", "endgrent", "link", "setpriority", "-b", "endhostent", "listen", "setprotoent", "-C", "endnetent", "local", "setpwent", "-c", "endprotoent", "localtime", "setservent", "-d", "endpwent", "log", "setsockopt", "-e", "endservent", "lstat", "shift", "-f", "eof", "map", "shmctl", "-g", "eval", "mkdir", "shmget", "-k", "exec", "msgctl", "shmread", "-l", "exists", "msgget", "shmwrite", "-M", "exit", "msgrcv", "shutdown", "-O", "fcntl", "msgsnd", "sin", "-o", "fileno", "my", "sleep", "-p", "flock", "next", "socket", "-r", "fork", "not", "socketpair", "-R", "format", "oct", "sort", "-S", "formline", "open", "splice", "-s", "getc", "opendir", "split", "-T", "getgrent", "ord", "sprintf", "-t", "getgrgid", "our", "sqrt", "-u", "getgrnam", "pack", "srand", "-w", "gethostbyaddr", "pipe", "stat", "-W", "gethostbyname", "pop", "state", "-X", "gethostent", "pos", "study", "-x", "getlogin", "print", "substr", "-z", "getnetbyaddr", "printf", "symlink", "abs", "getnetbyname", "prototype", "syscall", "accept", "getnetent", "push", "sysopen", "alarm", "getpeername", "quotemeta", "sysread", "atan2", "getpgrp", "rand", "sysseek", "AUTOLOAD", "getppid", "read", "system", "BEGIN", "getpriority", "readdir", "syswrite", "bind", "getprotobyname", "readline", "tell", "binmode", "getprotobynumber", "readlink", "telldir", "bless", "getprotoent", "readpipe", "tie", "break", "getpwent", "recv", "tied", "caller", "getpwnam", "redo", "time", "chdir", "getpwuid", "ref", "times", "CHECK", "getservbyname", "rename", "truncate", "chmod", "getservbyport", "require", "uc", "chomp", "getservent", "reset", "ucfirst", "chop", "getsockname", "return", "umask", "chown", "getsockopt", "reverse", "undef", "chr", "glob", "rewinddir", "UNITCHECK", "chroot", "gmtime", "rindex", "unlink", "close", "goto", "rmdir", "unpack", "closedir", "grep", "say", "unshift", "connect", "hex", "scalar", "untie", "cos", "index", "seek", "use", "crypt", "INIT", "seekdir", "utime", "dbmclose", "int", "select", "values", "dbmopen", "ioctl", "semctl", "vec", "defined", "join", "semget", "wait", "delete", "keys", "semop", "waitpid", "DESTROY", "kill", "send", "wantarray", "die", "last", "setgrent", "warn", "dump", "lc", "sethostent", "write", "each", "lcfirst", "setnetent"];
-
-let perlVariables: string[] = ["$!", "$^RE_TRIE_MAXBUF", "$LAST_REGEXP_CODE_RESULT", "$\"", "$^S", "$LIST_SEPARATOR", "$#", "$^T", "$MATCH", "$$", "$^TAINT", "$MULTILINE_MATCHING", "$%", "$^UNICODE", "$NR", "$&", "$^UTF8LOCALE", "$OFMT", "$'", "$^V", "$OFS", "$(", "$^W", "$ORS", "$)", "$^WARNING_BITS", "$OS_ERROR", "$*", "$^WIDE_SYSTEM_CALLS", "$OSNAME", "$+", "$^X", "$OUTPUT_AUTO_FLUSH", "$,", "$_", "$OUTPUT_FIELD_SEPARATOR", "$-", "$`", "$OUTPUT_RECORD_SEPARATOR", "$.", "$a", "$PERL_VERSION", "$/", "$ACCUMULATOR", "$PERLDB", "$0", "$ARG", "$PID", "$:", "$ARGV", "$POSTMATCH", "$;", "$b", "$PREMATCH", "$<", "$BASETIME", "$PROCESS_ID", "$=", "$CHILD_ERROR", "$PROGRAM_NAME", "$>", "$COMPILING", "$REAL_GROUP_ID", "$?", "$DEBUGGING", "$REAL_USER_ID", "$@", "$EFFECTIVE_GROUP_ID", "$RS", "$[", "$EFFECTIVE_USER_ID", "$SUBSCRIPT_SEPARATOR", "$\\", "$EGID", "$SUBSEP", "$]", "$ERRNO", "$SYSTEM_FD_MAX", "$^", "$EUID", "$UID", "$^A", "$EVAL_ERROR", "$WARNING", "$^C", "$EXCEPTIONS_BEING_CAUGHT", "$|", "$^CHILD_ERROR_NATIVE", "$EXECUTABLE_NAME", "$~", "$^D", "$EXTENDED_OS_ERROR", "%!", "$^E", "$FORMAT_FORMFEED", "%^H", "$^ENCODING", "$FORMAT_LINE_BREAK_CHARACTERS", "%ENV", "$^F", "$FORMAT_LINES_LEFT", "%INC", "$^H", "$FORMAT_LINES_PER_PAGE", "%OVERLOAD", "$^I", "$FORMAT_NAME", "%SIG", "$^L", "$FORMAT_PAGE_NUMBER", "@+", "$^M", "$FORMAT_TOP_NAME", "@-", "$^N", "$GID", "@_", "$^O", "$INPLACE_EDIT", "@ARGV", "$^OPEN", "$INPUT_LINE_NUMBER", "@INC", "$^P", "$INPUT_RECORD_SEPARATOR", "@LAST_MATCH_START", "$^R", "$LAST_MATCH_END", "$^RE_DEBUG_FLAGS", "$LAST_PAREN_MATCH"];
-
-let itemKindMap = {
-    p: vscode.CompletionItemKind.Module,
-    s: vscode.CompletionItemKind.Function,
-    r: vscode.CompletionItemKind.Reference,
-    v: vscode.CompletionItemKind.Variable
-};
-
 interface FileCompletionItems {
     [index: string]: vscode.CompletionItem[];
 }
@@ -329,7 +276,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         let word: RegExpExecArray;
         let text = document.getText();
         let words = {};
-        while (word = PERL_CONFIG.wordPattern.exec(text)) {
+        while (word = perl.CONFIG.wordPattern.exec(text)) {
             words[word[0]] = true;
         }
 
@@ -337,23 +284,23 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         delete words[currentWord];
 
         let items: vscode.CompletionItem[] = [];
-        for (let i = 0; i < perlKeywords.length; i++) {
-            delete words[perlKeywords[i]];
-            let item = new vscode.CompletionItem(perlKeywords[i]);
+        for (let i = 0; i < perl.KEYWORDS.length; i++) {
+            delete words[perl.KEYWORDS[i]];
+            let item = new vscode.CompletionItem(perl.KEYWORDS[i]);
             item.kind = vscode.CompletionItemKind.Keyword;
             item.detail = "perl keyword";
             items.push(item);
         }
-        for (let i = 0; i < perlFunctions.length; i++) {
-            delete words[perlFunctions[i]];
-            let item = new vscode.CompletionItem(perlFunctions[i]);
+        for (let i = 0; i < perl.FUNCTIONS.length; i++) {
+            delete words[perl.FUNCTIONS[i]];
+            let item = new vscode.CompletionItem(perl.FUNCTIONS[i]);
             item.kind = vscode.CompletionItemKind.Function;
             item.detail = "perl function";
             items.push(item);
         }
-        for (let i = 0; i < perlVariables.length; i++) {
-            delete words[perlVariables[i]];
-            let item = new vscode.CompletionItem(perlVariables[i]);
+        for (let i = 0; i < perl.VARIABLES.length; i++) {
+            delete words[perl.VARIABLES[i]];
+            let item = new vscode.CompletionItem(perl.VARIABLES[i]);
             item.kind = vscode.CompletionItemKind.Variable;
             item.detail = "perl variable";
             items.push(item);
@@ -396,7 +343,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                             fileItems[match[1]] = fileItems[match[1]] || [];
 
                             let item = new vscode.CompletionItem(match[0]);
-                            item.kind = itemKindMap[match[3].replace(/[^\w]/g, "")];
+                            item.kind = ctags.ITEM_KINDS[match[3].replace(/[^\w]/g, "")];
                             item.detail = match[1];
 
                             if (match[3].replace(/[^\w]/g, "") === "p") {
@@ -507,19 +454,19 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
 
 export function activate(context: vscode.ExtensionContext) {
 
-    vscode.languages.setLanguageConfiguration(PERL_MODE.language, PERL_CONFIG);
+    vscode.languages.setLanguageConfiguration(perl.MODE.language, perl.CONFIG);
 
-    let definitions = new PerlDefinitionProvider();
-    context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, definitions));
-    context.subscriptions.push(vscode.languages.registerHoverProvider(PERL_MODE, definitions));
-    context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(PERL_MODE, definitions, '(', ','));
+    let definitionProvider = new PerlDefinitionProvider();
+    context.subscriptions.push(vscode.languages.registerDefinitionProvider(perl.MODE, definitionProvider));
+    context.subscriptions.push(vscode.languages.registerHoverProvider(perl.MODE, definitionProvider));
+    context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(perl.MODE, definitionProvider, '(', ','));
 
-    context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
+    context.subscriptions.push(vscode.languages.registerCompletionItemProvider(perl.MODE, new PerlCompletionItemProvider()));
 
-    context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
+    context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(perl.MODE, new PerlDocumentSymbolProvider()));
     context.subscriptions.push(vscode.languages.registerWorkspaceSymbolProvider(new PerlWorkspaceSymbolProvider()));
 
-    context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(PERL_MODE, new PerlDocumentRangeFormattingEditProvider()));
+    context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, new PerlDocumentRangeFormattingEditProvider()));
 
     vscode.workspace.onDidSaveTextDocument(document => {
         if (document.languageId === "perl") {

@@ -11,18 +11,32 @@ const EXTRA = {
     "variable": "--regex-perl=\/^[ \\t]*my[ \\t(]+([$@%][A-Za-z][A-Za-z0-9:]+)[ \\t)]*\/\\1\/v,variable\/"
 };
 
-export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
-    let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
-    let stream = fs.createReadStream(tags);
-    stream.on("data", data);
-    stream.on("error", error);
-    stream.on("end", end);
+export const ITEM_KINDS = {
+    p: vscode.CompletionItemKind.Module,
+    s: vscode.CompletionItemKind.Function,
+    r: vscode.CompletionItemKind.Reference,
+    v: vscode.CompletionItemKind.Variable
 }
+
+export const SYMBOL_KINDS = {
+    p: vscode.SymbolKind.Package,
+    s: vscode.SymbolKind.Function,
+    l: vscode.SymbolKind.Constant,
+    c: vscode.SymbolKind.Constant
+};
 
 function exec(args: string[], callback: (error: Error, stdout: string, stderr: string) => void) {
     cp.execFile("ctags", ["--languages=perl", "-n", "--fields=k"].concat(args), {
         cwd: vscode.workspace.rootPath
     }, callback);
+}
+
+export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
+    exec(["-f", "-", fileName], callback);
+}
+
+export function readFileUse(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
+    exec([EXTRA["use"], "-f", "-", fileName], callback);
 }
 
 export function writeProject() {
@@ -34,10 +48,10 @@ export function writeProject() {
     });
 }
 
-export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
-    exec(["-f", "-", fileName], callback);
-}
-
-export function readFileUse(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
-    exec([EXTRA["use"], "-f", "-", fileName], callback);
+export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
+    let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
+    let stream = fs.createReadStream(tags);
+    stream.on("data", data);
+    stream.on("error", error);
+    stream.on("end", end);
 }
