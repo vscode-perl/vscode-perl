@@ -93,7 +93,7 @@ function getMatchLocation(line: string): vscode.Location {
     return new vscode.Location(uri, pos);
 }
 
-class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider {
+class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.SignatureHelpProvider {
     public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
         let wordRange = document.getWordRangeAtPosition(position);
         if (typeof wordRange === "undefined") {
@@ -174,6 +174,55 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
 
                         let hover = new vscode.Hover({ language: 'perl', value: value, });
                         resolve(hover);
+                    })
+                });
+            });
+    }
+
+    public provideSignatureHelp(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.SignatureHelp> {
+        let callRange = new vscode.Range(position.line, 0, position.line, position.character);
+        let callText = document.getText(callRange);
+
+        let index = callText.lastIndexOf('(');
+
+        let argCount = callText.substr(index).split(',').length - 1;
+        let callPosition = new vscode.Position(position.line, index);
+
+        return this.provideDefinition(document, callPosition, token)
+            .then(location => {
+                return new Promise((resolve, reject) => {
+                    fs.readFile(location.uri.fsPath, (err, data) => {
+                        if (err) {
+                            reject(err);
+                        }
+
+                        let lines = data.toString().split(/\r?\n/);
+                        let lastLine = Math.min(lines.length, location.range.end.line + 5);
+                        let index = location.range.start.line;
+                        let signature = '';
+                        while (index < lastLine) {
+                            let line = lines[index];
+                            if (line.match("@_")) {
+                                signature = line;
+                            }
+                            index++;
+                        }
+
+                        let params = signature.substring(
+                            signature.indexOf("(") + 1,
+                            signature.indexOf(")")
+                        ).split(",");
+                        let info = new vscode.SignatureInformation(signature);
+                        for (let param of params) {
+                            info.parameters.push(new vscode.ParameterInformation(param.trim()));
+                        }
+
+                        let help = new vscode.SignatureHelp();
+                        help.activeParameter = argCount;
+                        help.activeSignature = 0;
+                        help.signatures.push(info);
+
+                        resolve(help);
                     })
                 });
             });
@@ -498,6 +547,8 @@ export function activate(context: vscode.ExtensionContext) {
     let definitions = new PerlDefinitionProvider();
     context.subscriptions.push(vscode.languages.registerDefinitionProvider(PERL_MODE, definitions));
     context.subscriptions.push(vscode.languages.registerHoverProvider(PERL_MODE, definitions));
+    context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(PERL_MODE, definitions, '(', ','));
+
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider(PERL_MODE, new PerlCompletionItemProvider()));
 
     context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(PERL_MODE, new PerlDocumentSymbolProvider()));
