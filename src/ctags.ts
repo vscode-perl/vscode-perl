@@ -3,9 +3,15 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from 'vscode'
 
-const TAGS_FILE = "tags";
+const TAGS_FILE = "TAGS";
 
-export function read(data: (data:Buffer)=>void, error: (error:Buffer)=>void, end: ()=>void) {
+const EXTRA = {
+    "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
+    "require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
+    "variable": "--regex-perl=\/^[ \\t]*my[ \\t(]+([$@%][A-Za-z][A-Za-z0-9:]+)[ \\t)]*\/\\1\/v,variable\/"
+};
+
+export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
     let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
     let stream = fs.createReadStream(tags);
     stream.on("data", data);
@@ -13,13 +19,25 @@ export function read(data: (data:Buffer)=>void, error: (error:Buffer)=>void, end
     stream.on("end", end);
 }
 
-export function write() {
-    cp.execFile("ctags", ["-R", "-n", "--languages=perl", "--perl-kinds=ps", "--fields=k", "-f", TAGS_FILE], {
+function exec(args: string[], callback: (error: Error, stdout: string, stderr: string) => void) {
+    cp.execFile("ctags", ["--languages=perl", "-n", "--fields=k"].concat(args), {
         cwd: vscode.workspace.rootPath
-    }, (error, stdout, stderr) => {
+    }, callback);
+}
+
+export function writeProject() {
+    exec(["-R", "--perl-kinds=ps", "-f", TAGS_FILE], (error, stdout, stderr) => {
         if (error) {
             vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
         }
         console.log("Tags generated.");
     });
+}
+
+export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
+    exec(["-f", "-", fileName], callback);
+}
+
+export function readFileUse(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
+    exec([EXTRA["use"], "-f", "-", fileName], callback);
 }

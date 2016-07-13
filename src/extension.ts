@@ -100,7 +100,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
             let matches: string[] = [];
             let pkgMatch: string;
 
-            ctags.read((chunk: Buffer) => {
+            ctags.readProject((chunk: Buffer) => {
                 let lines = chunk.toString().split(/\r?\n/);
                 for (let i = 0; i < lines.length; i++) {
                     let line = lines[i];
@@ -221,9 +221,7 @@ let symbolKindMap = {
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
         return new Promise((resolve, reject) => {
-            cp.execFile("ctags", ["--languages=perl", "-n", "--fields=k", "-f", "-", document.fileName], {
-                cwd: vscode.workspace.rootPath
-            }, (error, stdout, stderr) => {
+            ctags.readFile(document.fileName, (error, stdout, stderr) => {
                 if (error) {
                     vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
                     return reject("An error occured while generating tags");
@@ -261,8 +259,7 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
     public provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
         return new Promise((resolve, reject) => {
             let symbols: vscode.SymbolInformation[] = [];
-
-            ctags.read((chunk: Buffer) => {
+            ctags.readProject((chunk: Buffer) => {
                 let lines = chunk.toString().split("\n");
                 for (let i = 0; i < lines.length; i++) {
                     let match = lines[i].split("\t");
@@ -363,9 +360,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         }
 
         return new Promise((resolve, reject) => {
-            cp.execFile("ctags", ["--languages=perl", "-n", extraTags["use"], "--fields=k", "-f", "-", document.fileName], {
-                cwd: vscode.workspace.rootPath
-            }, (error, stdout, stderr) => {
+            ctags.readFileUse(document.fileName, (error, stdout, stderr) => {
                 let usedPackages: string[] = [];
 
                 if (error) {
@@ -392,7 +387,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                 let fileItems: FileCompletionItems = {};
                 let packageItems: vscode.CompletionItem[] = [];
 
-                ctags.read((chunk: Buffer) => {
+                ctags.readProject((chunk: Buffer) => {
                     let lines = chunk.toString().split("\n");
                     for (let i = 0; i < lines.length; i++) {
                         let match = lines[i].split("\t");
@@ -528,9 +523,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidSaveTextDocument(document => {
         if (document.languageId === "perl") {
-            ctags.write();
+            ctags.writeProject();
         }
     });
 
-    ctags.write();
+    ctags.writeProject();
 }
