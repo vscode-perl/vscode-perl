@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 
+import * as ctags from "./ctags";
+
 const PERL_MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
 
 const PERL_CONFIG: vscode.LanguageConfiguration = {
@@ -34,20 +36,6 @@ let extraTags = {
     "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
     "require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
     "variable": "--regex-perl=\/^[ \\t]*my[ \\t(]+([$@%][A-Za-z][A-Za-z0-9:]+)[ \\t)]*\/\\1\/v,variable\/"
-};
-
-let fileRegexp = /^(.*),\d+$/;
-let tagsFile = "tags";
-
-function makeTags() {
-    cp.execFile("ctags", ["-R", "-n", "--languages=perl", "--perl-kinds=ps", "--fields=k", "-f", tagsFile], {
-        cwd: vscode.workspace.rootPath
-    }, (error, stdout, stderr) => {
-        if (error) {
-            vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
-        }
-        console.log("Tags generated.");
-    });
 };
 
 function getPointBefore(range: vscode.Range, delta: number): vscode.Position {
@@ -109,12 +97,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
             let fileName = document.fileName;
             // console.log(`Looking for "${word}" in "${fileName}"`);
 
-            let tags = path.join(vscode.workspace.rootPath, tagsFile);
-            let stream = fs.createReadStream(tags);
             let matches: string[] = [];
             let pkgMatch: string;
 
-            stream.on("data", (chunk: Buffer) => {
+            ctags.read((chunk: Buffer) => {
                 let lines = chunk.toString().split(/\r?\n/);
                 for (let i = 0; i < lines.length; i++) {
                     let line = lines[i];
@@ -129,14 +115,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                         pkgMatch = line;
                     }
                 }
-            });
-
-            stream.on("error", (error: Buffer) => {
+            }, (error: Buffer) => {
                 console.error("error", error.toString());
                 vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString()}`);
-            });
-
-            stream.on("end", () => {
+            }, () => {
                 fileName = fileName.replace(vscode.workspace.rootPath, ".");
                 if (pkgMatch) {
                     return resolve(getMatchLocation(pkgMatch));
@@ -279,10 +261,8 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
     public provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
         return new Promise((resolve, reject) => {
             let symbols: vscode.SymbolInformation[] = [];
-            let tags = path.join(vscode.workspace.rootPath, tagsFile);
-            let stream = fs.createReadStream(tags);
 
-            stream.on("data", (chunk: Buffer) => {
+            ctags.read((chunk: Buffer) => {
                 let lines = chunk.toString().split("\n");
                 for (let i = 0; i < lines.length; i++) {
                     let match = lines[i].split("\t");
@@ -306,13 +286,9 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
                         symbols.push(info);
                     }
                 }
-            });
-
-            stream.on("error", (error: Buffer) => {
+            }, (error: Buffer) => {
                 return resolve(symbols);
-            });
-
-            stream.on("end", () => {
+            }, () => {
                 return resolve(symbols);
             });
         });
@@ -416,9 +392,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                 let fileItems: FileCompletionItems = {};
                 let packageItems: vscode.CompletionItem[] = [];
 
-                let tags = path.join(vscode.workspace.rootPath, tagsFile);
-                let stream = fs.createReadStream(tags);
-                stream.on("data", (chunk: Buffer) => {
+                ctags.read((chunk: Buffer) => {
                     let lines = chunk.toString().split("\n");
                     for (let i = 0; i < lines.length; i++) {
                         let match = lines[i].split("\t");
@@ -443,15 +417,11 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
 
                         }
                     }
-                });
-
-                stream.on("error", (error: Buffer) => {
+                }, (error: Buffer) => {
                     console.error("error", error.toString());
                     vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString()}`);
                     return resolve(items);
-                });
-
-                stream.on("end", () => {
+                }, () => {
                     if (filePackage[pkg]) {
                         let file = filePackage[pkg];
                         if (fileItems[file]) {
@@ -558,9 +528,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidSaveTextDocument(document => {
         if (document.languageId === "perl") {
-            makeTags();
+            ctags.write();
         }
     });
 
-    makeTags();
+    ctags.write();
 }
