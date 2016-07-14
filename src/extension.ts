@@ -113,18 +113,18 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                             reject(err);
                         }
                         let lines = data.toString().split(/\r?\n/);
-                        let value = '';
+                        let value = "";
 
                         let end = Math.min(lines.length, location.range.end.line + 5);
                         let index = location.range.start.line;
                         while (index < end) {
-                            value += lines[index] + '\n';
+                            value += lines[index] + "\n";
                             index++;
                         }
 
-                        let hover = new vscode.Hover({ language: 'perl', value: value, });
+                        let hover = new vscode.Hover({ language: "perl", value: value, });
                         resolve(hover);
-                    })
+                    });
                 });
             });
     }
@@ -133,9 +133,9 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
         let callRange = new vscode.Range(position.line, 0, position.line, position.character);
         let callText = document.getText(callRange);
 
-        let index = callText.lastIndexOf('(');
+        let index = callText.lastIndexOf("(");
 
-        let argCount = callText.substr(index).split(',').length - 1;
+        let argCount = callText.substr(index).split(",").length - 1;
         let callPosition = new vscode.Position(position.line, index);
 
         return this.provideDefinition(document, callPosition, token)
@@ -149,7 +149,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                         let lines = data.toString().split(/\r?\n/);
                         let lastLine = Math.min(lines.length, location.range.end.line + 5);
                         let index = location.range.start.line;
-                        let signature = '';
+                        let signature = "";
                         while (index < lastLine) {
                             let line = lines[index];
                             if (line.match("@_")) {
@@ -173,7 +173,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                         help.signatures.push(info);
 
                         resolve(help);
-                    })
+                    });
                 });
             });
     }
@@ -459,7 +459,7 @@ export function activate(context: vscode.ExtensionContext) {
     let definitionProvider = new PerlDefinitionProvider();
     context.subscriptions.push(vscode.languages.registerDefinitionProvider(perl.MODE, definitionProvider));
     context.subscriptions.push(vscode.languages.registerHoverProvider(perl.MODE, definitionProvider));
-    context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(perl.MODE, definitionProvider, '(', ','));
+    context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(perl.MODE, definitionProvider, "(", ","));
 
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider(perl.MODE, new PerlCompletionItemProvider()));
 

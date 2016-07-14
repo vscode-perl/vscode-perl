@@ -1,7 +1,7 @@
 import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import * as vscode from 'vscode'
+import * as vscode from "vscode";
 
 const TAGS_FILE = "TAGS";
 
@@ -16,7 +16,7 @@ export const ITEM_KINDS = {
     s: vscode.CompletionItemKind.Function,
     r: vscode.CompletionItemKind.Reference,
     v: vscode.CompletionItemKind.Variable
-}
+};
 
 export const SYMBOL_KINDS = {
     p: vscode.SymbolKind.Package,
