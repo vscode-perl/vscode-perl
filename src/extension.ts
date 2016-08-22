@@ -115,11 +115,14 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                         let lines = data.toString().split(/\r?\n/);
                         let value = "";
 
-                        let end = Math.min(lines.length, location.range.end.line + 5);
+                        let end = Math.max(0, location.range.end.line - 5);
                         let index = location.range.start.line;
-                        while (index < end) {
-                            value += lines[index] + "\n";
-                            index++;
+                        while (index > end) {
+                            let line = lines[index];
+                            if (line.match(/^\s*#/) && line !== "##") {
+                                value = line.trim() + "\n" + value;
+                            }
+                            index--;
                         }
 
                         let hover = new vscode.Hover({ language: "perl", value: value, });
@@ -133,10 +136,44 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
         let callRange = new vscode.Range(position.line, 0, position.line, position.character);
         let callText = document.getText(callRange);
 
-        let index = callText.lastIndexOf("(");
+        let offset = position.character - 1;
 
-        let argCount = callText.substr(index).split(",").length - 1;
-        let callPosition = new vscode.Position(position.line, index);
+        let externalCount = 0;
+        let internalCount = 0;
+
+        let callIndex = callText.lastIndexOf("(");
+
+        while (offset > -1) {
+            let char = callText[offset];
+            switch (char) {
+                case ",":
+                    externalCount++;
+                    internalCount++;
+                    break;
+
+                case "[":
+                    externalCount = externalCount - internalCount;
+                    internalCount = 0;
+                    break;
+
+                case "]":
+                    internalCount = 0;
+                    break;
+
+                case "(":
+                    callIndex = offset;
+                    if (callText.substr(offset - 2, 2) !== "qw") {
+                        offset = 0;
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+            offset--;
+        }
+
+        let callPosition = new vscode.Position(position.line, callIndex);
 
         return this.provideDefinition(document, callPosition, token)
             .then(location => {
@@ -148,16 +185,17 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
 
                         let lines = data.toString().split(/\r?\n/);
                         let lastLine = Math.min(lines.length, location.range.end.line + 5);
-                        let index = location.range.start.line;
+                        let i = location.range.start.line;
                         let signature = "";
-                        while (index < lastLine) {
-                            let line = lines[index];
+                        while (i < lastLine) {
+                            let line = lines[i];
                             if (line.match("@_")) {
                                 signature = line;
                             }
-                            index++;
+                            i++;
                         }
 
+                        // TODO handle fn(['asd', 'omg'])
                         let params = signature.substring(
                             signature.indexOf("(") + 1,
                             signature.indexOf(")")
@@ -168,7 +206,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                         }
 
                         let help = new vscode.SignatureHelp();
-                        help.activeParameter = argCount;
+                        help.activeParameter = externalCount;
                         help.activeSignature = 0;
                         help.signatures.push(info);
 

@@ -2,6 +2,8 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import {CompletionItemKind, SymbolKind} from "vscode";
+
 
 const TAGS_FILE = "TAGS";
 
@@ -12,17 +14,17 @@ const EXTRA = {
 };
 
 export const ITEM_KINDS = {
-    p: vscode.CompletionItemKind.Module,
-    s: vscode.CompletionItemKind.Function,
-    r: vscode.CompletionItemKind.Reference,
-    v: vscode.CompletionItemKind.Variable
+    p: CompletionItemKind.Module,
+    s: CompletionItemKind.Function,
+    r: CompletionItemKind.Reference,
+    v: CompletionItemKind.Variable
 };
 
 export const SYMBOL_KINDS = {
-    p: vscode.SymbolKind.Package,
-    s: vscode.SymbolKind.Function,
-    l: vscode.SymbolKind.Constant,
-    c: vscode.SymbolKind.Constant
+    p: SymbolKind.Package,
+    s: SymbolKind.Function,
+    l: SymbolKind.Constant,
+    c: SymbolKind.Constant
 };
 
 function exec(args: string[], callback: (error: Error, stdout: string, stderr: string) => void) {

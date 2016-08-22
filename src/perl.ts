@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
+import {DocumentFilter, LanguageConfiguration} from "vscode";
 
-export const MODE: vscode.DocumentFilter = { language: "perl", scheme: "file" };
+export const MODE: DocumentFilter = { language: "perl", scheme: "file" };
 
-export const CONFIG: vscode.LanguageConfiguration = {
+export const CONFIG: LanguageConfiguration = {
     wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\#\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
     comments: {
         lineComment: "#",
