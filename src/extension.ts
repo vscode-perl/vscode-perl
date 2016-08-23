@@ -347,6 +347,7 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
         return new Promise((resolve, reject) => {
             ctags.readFileUse(document.fileName, (error, stdout, stderr) => {
                 let usedPackages: string[] = [];
+                let currentPackage: string = "";
 
                 if (error) {
                     vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
@@ -361,8 +362,11 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                     let match = lines[i].split("\t");
                     if (match.length === 4) {
                         let kind = match[3].replace(/[^\w]/g, "");
-                        if (kind === "u" || kind === "p") {
+                        if (kind === "u") {
                             usedPackages.push(match[0]);
+                        } else if (kind === "p") {
+                            usedPackages.push(match[0]);
+                            currentPackage = match[0];
                         }
                     }
                 }
@@ -431,6 +435,10 @@ class PerlCompletionItemProvider implements vscode.CompletionItemProvider {
                             if (fileItems[file]) {
                                 fileItems[file].forEach(item => {
                                     delete words[item.label];
+
+                                    if (item.label.startsWith("_") && usedPkg === currentPackage) {
+                                        item.insertText = item.label;
+                                    }
 
                                     item.label = `${usedPkg}::${item.label}`;
                                     items.push(item);
