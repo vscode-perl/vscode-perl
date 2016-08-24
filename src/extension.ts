@@ -125,6 +125,10 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                             index--;
                         }
 
+                        if (value === "") {
+                            resolve(null);
+                        }
+
                         let hover = new vscode.Hover({ language: "perl", value: value, });
                         resolve(hover);
                     });
