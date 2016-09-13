@@ -199,7 +199,7 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
                             i++;
                         }
 
-                        // TODO handle fn(['asd', 'omg'])
+                        // TODO handle fn(['asd', 'omg']) and fn({asd => 'omg'})
                         let params = signature.substring(
                             signature.indexOf("(") + 1,
                             signature.indexOf(")")
@@ -478,8 +478,10 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
             }
 
             let newText = "";
-            let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); // , "-otr"
-            child.stdin.write(document.getText(range));
+            let oldText = document.getText(range);
+            // let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); // , "-otr"
+            let child = cp.spawn("docker", ["exec", "-i", "myconfigura", "perltidy", "-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); // , "-otr"
+            child.stdin.write(oldText);
             child.stdin.end();
 
             child.stdout.on("data", (out: Buffer) => {
@@ -495,7 +497,9 @@ class PerlDocumentRangeFormattingEditProvider implements vscode.DocumentRangeFor
             });
 
             child.on("close", () => {
-                newText = newText.slice(0, -2); // remove trailing newline
+                if (!oldText.endsWith("\n")) {
+                    newText = newText.slice(0, -1); // remove trailing newline
+                }
                 resolve([new vscode.TextEdit(range, newText)]);
             });
         });
