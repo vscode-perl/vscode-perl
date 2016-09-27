@@ -17,14 +17,15 @@ export const ITEM_KINDS = {
     p: CompletionItemKind.Module,
     s: CompletionItemKind.Function,
     r: CompletionItemKind.Reference,
-    v: CompletionItemKind.Variable
+    v: CompletionItemKind.Variable,
+    c: CompletionItemKind.Value,
 };
 
 export const SYMBOL_KINDS = {
     p: SymbolKind.Package,
     s: SymbolKind.Function,
     l: SymbolKind.Constant,
-    c: SymbolKind.Constant
+    c: SymbolKind.Constant,
 };
 
 function exec(args: string[], callback: (error: Error, stdout: string, stderr: string) => void) {
@@ -42,7 +43,7 @@ export function readFileUse(fileName: string, callback: (error: Error, stdout: s
 }
 
 export function writeProject() {
-    exec(["-R", "--perl-kinds=ps", "-f", TAGS_FILE], (error, stdout, stderr) => {
+    exec(["-R", "--perl-kinds=psc", "-f", TAGS_FILE], (error, stdout, stderr) => {
         if (error) {
             vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
         }
