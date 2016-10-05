@@ -262,12 +262,16 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
     public provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
         return new Promise((resolve, reject) => {
             let symbols: vscode.SymbolInformation[] = [];
+            let lastLine = "";
             ctags.readProject((chunk: Buffer) => {
-                let lines = chunk.toString().split("\n");
-                for (let i = 0; i < lines.length; i++) {
-                    let match = lines[i].split("\t");
+                let lines = (lastLine + chunk.toString()).split("\n");
+                let last = lines.length - 1;
+                let match: string[];
 
-                    if (match.length === 4) {
+                for (let i = 0; i <= last; i++) {
+                    match = lines[i].split("\t");
+
+                    if (match.length === 4 && match[0] !== "") {
                         let name = match[0];
                         let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
                         if (typeof kind === "undefined") {
@@ -286,6 +290,13 @@ class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
                         symbols.push(info);
                     }
                 }
+
+                if (match && match.length !== 4) {
+                    lastLine = lines[last];
+                } else {
+                    lastLine = "";
+                }
+
             }, (error: Buffer) => {
                 return resolve(symbols);
             }, () => {

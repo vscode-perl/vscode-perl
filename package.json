@@ -1,7 +1,7 @@
 {
   "name": "vscode-perl",
   "description": "perl!",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "publisher": "henriiik",
   "engines": {
     "vscode": "^1.3.0"
