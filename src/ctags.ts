@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import {CompletionItemKind, SymbolKind} from "vscode";
 
 
-const TAGS_FILE = "TAGS";
+const TAGS_FILE = ".vstags";
 
 const EXTRA = {
     "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
