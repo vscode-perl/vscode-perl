@@ -36,9 +36,9 @@ function exec(args: string[], callback: (error: Error, stdout: string, stderr: s
     }, callback);
 }
 
-export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
-    exec(["-f", "-", fileName], callback);
-}
+// export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
+//     exec(["-f", "-", fileName], callback);
+// }
 
 export function readFileUse(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
     exec([EXTRA["use"], "-f", "-", fileName], callback);
@@ -53,9 +53,20 @@ export function writeProject() {
     });
 }
 
-export function syncGenerateFileTags(fileName: string) {
+export function asyncGenerateFileTags(fileName: string) {
     return new Promise<string>((resolve, reject) => {
-        readFile(fileName, (error, stdout, stderr) => {
+        exec(["-f", "-", fileName], (error, stdout, stderr) => {
+            if (error) {
+                reject(`An error occured while generating tags: ${stderr.toString()}`);
+            }
+            resolve(stdout);
+        });
+    });
+}
+
+export function asyncGenerateFileUseTags(fileName: string) {
+    return new Promise<string>((resolve, reject) => {
+        exec([EXTRA["use"], "-f", "-", fileName], (error, stdout, stderr) => {
             if (error) {
                 reject(`An error occured while generating tags: ${stderr.toString()}`);
             }
