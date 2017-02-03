@@ -50,93 +50,108 @@ function getMatchLocation(line: string): vscode.Location {
 }
 
 class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.SignatureHelpProvider {
-    public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location> {
+    public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location> {
         let wordRange = document.getWordRangeAtPosition(position);
         if (typeof wordRange === "undefined") {
             console.error("No word at pos!");
             return null;
         }
 
-        return new Promise((resolve, reject) => {
-            let word = document.getText(wordRange);
-            let pkg = getPackageBefore(document, wordRange);
-            // console.log(pkg);
+        let data: string;
+        try {
+            data = await ctags.asyncReadProjectTags();
+        } catch (error) {
+            console.error("error", error);
+            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
+            return null;
+        }
 
-            let fileName = document.fileName;
-            // console.log(`Looking for "${word}" in "${fileName}"`);
+        let word = document.getText(wordRange);
+        let pkg = getPackageBefore(document, wordRange);
+        // console.log(pkg);
 
-            let matches: string[] = [];
-            let pkgMatch: string;
+        let fileName = document.fileName;
+        // console.log(`Looking for "${word}" in "${fileName}"`);
 
-            ctags.readProject((chunk: Buffer) => {
-                let lines = chunk.toString().split(/\r?\n/);
-                for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i];
-                    if (line.startsWith(`${word}\t`)) {
-                        matches.push(line);
-                    } else if (line.startsWith(`${pkg}\t`)) {
-                        let split = line.split("\t");
-                        if (split[3] === "p") {
-                            fileName = split[1];
-                        }
-                    } else if (line.startsWith(`${pkg}::${word}\t`)) {
-                        pkgMatch = line;
-                    }
+        let matches: string[] = [];
+        let pkgMatch: string;
+
+        let lines = data.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            if (line.startsWith(`${word}\t`)) {
+                matches.push(line);
+            } else if (line.startsWith(`${pkg}\t`)) {
+                let split = line.split("\t");
+                if (split[3] === "p") {
+                    fileName = split[1];
                 }
-            }, (error: Buffer) => {
-                console.error("error", error.toString());
-                vscode.window.showErrorMessage(`An error occured while reading tags: ${error.toString()}`);
-            }, () => {
-                fileName = fileName.replace(vscode.workspace.rootPath, ".");
-                if (pkgMatch) {
-                    return resolve(getMatchLocation(pkgMatch));
-                }
-                for (let i = 0; i < matches.length; i++) {
-                    let match = matches[i].split("\t");
+            } else if (line.startsWith(`${pkg}::${word}\t`)) {
+                pkgMatch = line;
+            }
+        }
 
-                    if (fileName === match[1] || (i + 1 === matches.length)) {
-                        return resolve(getMatchLocation(matches[i]));
-                    }
-                }
-                console.log("Could not find tag");
-                return reject("Could not find tag.");
-            });
-        });
+        fileName = fileName.replace(vscode.workspace.rootPath, ".");
+        if (pkgMatch) {
+            return getMatchLocation(pkgMatch);
+        }
+        for (let i = 0; i < matches.length; i++) {
+            let match = matches[i].split("\t");
+
+            if (fileName === match[1] || (i + 1 === matches.length)) {
+                return getMatchLocation(matches[i]);
+            }
+        }
+
+        console.log("Could not find tag");
+        return null;
     }
 
-    public provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Hover> {
-        return this.provideDefinition(document, position, token)
-            .then(location => {
-                return new Promise((resolve, reject) => {
-                    fs.readFile(location.uri.fsPath, (err, data) => {
-                        if (err) {
-                            reject(err);
-                        }
-                        let lines = data.toString().split(/\r?\n/);
-                        let value = "";
+    public async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover> {
+        let location: vscode.Location;
+        try {
+            location = await this.provideDefinition(document, position, token);
+        } catch (error) {
+            console.error("error", error);
+            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
+            return null;
+        }
 
-                        let end = Math.max(0, location.range.end.line - 5);
-                        let index = location.range.start.line;
-                        while (index > end) {
-                            let line = lines[index];
-                            if (line.match(/^\s*#/) && line !== "##") {
-                                value = line.trim() + "\n" + value;
-                            }
-                            index--;
-                        }
+        if (!location) {
+            return null;
+        }
 
-                        if (value === "") {
-                            resolve(null);
-                        }
+        let data: string;
+        try {
+            data = await ctags.asyncReadFile(location.uri.fsPath);
+        } catch (error) {
+            return null;
+        }
 
-                        let hover = new vscode.Hover({ language: "perl", value: value, });
-                        resolve(hover);
-                    });
-                });
-            });
+        let lines = data.split(/\r?\n/);
+        let value = "";
+
+        let end = Math.max(0, location.range.end.line - 5);
+        let index = location.range.start.line;
+        while (index > end) {
+            let line = lines[index];
+            if (line.match(/^\s*#/) && line !== "##") {
+                value = line.trim() + "\n" + value;
+            }
+            index--;
+        }
+
+        if (value === "") {
+            return null;
+        }
+
+        let hover = new vscode.Hover({ language: "perl", value: value, });
+
+        return hover;
+
     }
 
-    public provideSignatureHelp(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.SignatureHelp> {
+    public async provideSignatureHelp(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.SignatureHelp> {
         let callRange = new vscode.Range(position.line, 0, position.line, position.character);
         let callText = document.getText(callRange);
 
@@ -179,130 +194,132 @@ class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverP
 
         let callPosition = new vscode.Position(position.line, callIndex);
 
-        return this.provideDefinition(document, callPosition, token)
-            .then(location => {
-                return new Promise((resolve, reject) => {
-                    fs.readFile(location.uri.fsPath, (err, data) => {
-                        if (err) {
-                            reject(err);
-                        }
+        let location: vscode.Location;
+        try {
+            location = await this.provideDefinition(document, position, token);
+        } catch (error) {
+            console.error("error", error);
+            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
+            return null;
+        }
 
-                        let lines = data.toString().split(/\r?\n/);
-                        let lastLine = Math.min(lines.length, location.range.end.line + 5);
-                        let i = location.range.start.line;
-                        let signature = "";
-                        while (i < lastLine) {
-                            let line = lines[i];
-                            if (line.match("@_")) {
-                                signature = line;
-                            }
-                            i++;
-                        }
+        let data: string;
+        try {
+            data = await ctags.asyncReadFile(location.uri.fsPath);
+        } catch (error) {
+            return null;
+        }
 
-                        // TODO handle fn(['asd', 'omg']) and fn({asd => 'omg'})
-                        let params = signature.substring(
-                            signature.indexOf("(") + 1,
-                            signature.indexOf(")")
-                        ).split(",");
-                        let info = new vscode.SignatureInformation(signature);
-                        for (let param of params) {
-                            info.parameters.push(new vscode.ParameterInformation(param.trim()));
-                        }
+        let lines = data.toString().split(/\r?\n/);
+        let lastLine = Math.min(lines.length, location.range.end.line + 5);
+        let i = location.range.start.line;
+        let signature = "";
+        while (i < lastLine) {
+            let line = lines[i];
+            if (line.match("@_")) {
+                signature = line;
+            }
+            i++;
+        }
 
-                        let help = new vscode.SignatureHelp();
-                        help.activeParameter = externalCount;
-                        help.activeSignature = 0;
-                        help.signatures.push(info);
+        // TODO handle fn(['asd', 'omg']) and fn({asd => 'omg'})
+        let params = signature.substring(
+            signature.indexOf("(") + 1,
+            signature.indexOf(")")
+        ).split(",");
+        let info = new vscode.SignatureInformation(signature);
+        for (let param of params) {
+            info.parameters.push(new vscode.ParameterInformation(param.trim()));
+        }
 
-                        resolve(help);
-                    });
-                });
-            });
+        let help = new vscode.SignatureHelp();
+        help.activeParameter = externalCount;
+        help.activeSignature = 0;
+        help.signatures.push(info);
+
+        return help;
     }
 }
 
 class PerlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
-    public provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
-        return new Promise((resolve, reject) => {
-            ctags.readFile(document.fileName, (error, stdout, stderr) => {
-                if (error) {
-                    vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
-                    return reject("An error occured while generating tags");
+    public async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
+
+        let data: string;
+        try {
+            data = await ctags.syncGenerateFileTags(document.fileName);
+        } catch (error) {
+            console.error("error", error);
+            return null;
+        }
+
+        let lines = data.split("\n");
+        let symbols: vscode.SymbolInformation[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            let match = lines[i].split("\t");
+
+            if (match.length === 4) {
+                let name = match[0];
+                let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
+
+                if (typeof kind === "undefined") {
+                    console.error("Unknown symbol kind:", match[3]);
+                    kind = vscode.SymbolKind.Variable;
                 }
 
-                let lines = stdout.toString().split("\n");
-                let symbols: vscode.SymbolInformation[] = [];
+                let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
+                let range = document.lineAt(lineNo).range;
+                let info = new vscode.SymbolInformation(name, kind, range);
 
-                for (let i = 0; i < lines.length; i++) {
-                    let match = lines[i].split("\t");
+                symbols.push(info);
+            }
+        }
 
-                    if (match.length === 4) {
-                        let name = match[0];
-                        let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
-                        if (typeof kind === "undefined") {
-                            console.error("Unknown symbol kind:", match[3]);
-                            kind = vscode.SymbolKind.Variable;
-                        }
-                        let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
-
-                        let range = document.lineAt(lineNo).range;
-
-                        let info = new vscode.SymbolInformation(name, kind, range);
-
-                        symbols.push(info);
-                    }
-                }
-                return resolve(symbols);
-            });
-        });
+        return symbols;
     }
 }
 
 class PerlWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
-    public provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Thenable<vscode.SymbolInformation[]> {
-        return new Promise((resolve, reject) => {
-            let symbols: vscode.SymbolInformation[] = [];
-            let lastLine = "";
-            ctags.readProject((chunk: Buffer) => {
-                let lines = (lastLine + chunk.toString()).split("\n");
-                let last = lines.length - 1;
-                let match: string[];
+    public async provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
+        let data: string;
+        try {
+            data = await ctags.asyncReadProjectTags();
+        } catch (error) {
+            console.error("error", error);
+            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
+            return null;
+        }
 
-                for (let i = 0; i <= last; i++) {
-                    match = lines[i].split("\t");
+        let symbols: vscode.SymbolInformation[] = [];
 
-                    if (match.length === 4 && match[0] !== "") {
-                        let name = match[0];
-                        let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
-                        if (typeof kind === "undefined") {
-                            console.error("Unknown symbol kind:", match[3]);
-                            kind = vscode.SymbolKind.Variable;
-                        }
-                        let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
+        let lines = data.split("\n");
+        let last = lines.length - 1;
+        let match: string[];
 
-                        let range = new vscode.Range(lineNo, 0, lineNo, 0);
+        for (let i = 0; i <= last; i++) {
+            match = lines[i].split("\t");
 
-                        let file = match[1].replace(/^\.\\/, "");
-                        let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file));
-
-                        let info = new vscode.SymbolInformation(name, kind, range, uri);
-
-                        symbols.push(info);
-                    }
+            if (match.length === 4 && match[0] !== "") {
+                let name = match[0];
+                let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
+                if (typeof kind === "undefined") {
+                    console.error("Unknown symbol kind:", match[3]);
+                    kind = vscode.SymbolKind.Variable;
                 }
+                let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-                if (match && match.length !== 4) {
-                    lastLine = lines[last];
-                } else {
-                    lastLine = "";
-                }
+                let range = new vscode.Range(lineNo, 0, lineNo, 0);
 
-            }, (error: Buffer) => {
-                return resolve(symbols);
-            }, () => {
-                return resolve(symbols);
-            });
-        });
+                let file = match[1].replace(/^\.\\/, "");
+                let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file));
+
+                let info = new vscode.SymbolInformation(name, kind, range, uri);
+
+                symbols.push(info);
+            }
+        }
+
+        return symbols;
     }
 }
 
