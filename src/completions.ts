@@ -90,7 +90,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
 
         let data: string;
         try {
-            data = await ctags.asyncGenerateFileUseTags(document.fileName);
+            data = await ctags.asyncReadProjectTags();
         } catch (error) {
             console.error("error", error);
             return null;
