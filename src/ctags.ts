@@ -4,9 +4,8 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CompletionItemKind, SymbolKind } from "vscode";
 
-
 const TAGS_FILE = ".vstags";
-
+const DEFAULT_ARGS = ["--languages=perl", "-n", "--fields=k"];
 const EXTRA = {
     "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
     "require": "--regex-perl=\/^[ \\t]*require[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*\/\\1\/r,require,requires\/",
@@ -28,88 +27,74 @@ export const SYMBOL_KINDS = {
     c: SymbolKind.Constant,
 };
 
-// FILE
 
-function exec(args: string[], callback: (error: Error, stdout: string, stderr: string) => void) {
-    cp.execFile("ctags", ["--languages=perl", "-n", "--fields=k"].concat(args), {
-        cwd: vscode.workspace.rootPath
-    }, callback);
-}
+export class Ctags {
+    versionOk = false;
 
-// export function readFile(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
-//     exec(["-f", "-", fileName], callback);
-// }
-
-export function readFileUse(fileName: string, callback: (error: Error, stdout: string, stderr: string) => void) {
-    exec([EXTRA["use"], "-f", "-", fileName], callback);
-}
-
-export function writeProject() {
-    exec(["-R", "--perl-kinds=psc", "-f", TAGS_FILE], (error, stdout, stderr) => {
-        if (error) {
-            vscode.window.showErrorMessage(`An error occured while generating tags: ${stderr.toString()}`);
+    checkVersion(): Promise<void> {
+        if (this.versionOk) {
+            return Promise.resolve();
         }
-        console.log("Tags generated.");
-    });
-}
 
-export function asyncGenerateFileTags(fileName: string) {
-    return new Promise<string>((resolve, reject) => {
-        exec(["-f", "-", fileName], (error, stdout, stderr) => {
-            if (error) {
-                reject(`An error occured while generating tags: ${stderr.toString()}`);
-            }
-            resolve(stdout);
+        return this.run(["--version"])
+            .then(out => {
+                this.versionOk = true;
+            });
+    }
+
+    // running ctags
+
+    private run(args: string[]) {
+        return new Promise<string>((resolve, reject) => {
+            let env = { cwd: vscode.workspace.rootPath };
+            let cb = (error: Error, stdout: string, stderr: string) => {
+                if (error) {
+                    reject(error);
+                }
+                resolve(stdout);
+            };
+
+            cp.execFile("ctags", args, env, cb);
         });
-    });
-}
+    }
 
-export function asyncGenerateFileUseTags(fileName: string) {
-    return new Promise<string>((resolve, reject) => {
-        exec([EXTRA["use"], "-f", "-", fileName], (error, stdout, stderr) => {
-            if (error) {
-                reject(`An error occured while generating tags: ${stderr.toString()}`);
-            }
-            resolve(stdout);
+    generateProjectTagsFile(): Promise<void> {
+        let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", TAGS_FILE]);
+        return this.checkVersion()
+            .then(() => this.run(args))
+            .then(out => {
+                vscode.window.setStatusBarMessage(TAGS_FILE + " file generated.", 5000);
+            });
+    }
+
+    generateFileTags(fileName: string): Promise<string> {
+        let args = DEFAULT_ARGS.concat(["-f", "-", fileName]);
+        return this.checkVersion()
+            .then(() => this.run(args));
+    }
+
+    generateFileUseTags(fileName: string): Promise<string> {
+        let args = DEFAULT_ARGS.concat([EXTRA["use"], "-f", "-", fileName]);
+        return this.checkVersion()
+            .then(() => this.run(args));
+    }
+
+    // reading tags (and other) files
+
+    readFile(fileName: string) {
+        return new Promise<string>((resolve, reject) => {
+            fs.readFile(fileName, (error, data) => {
+                if (error) {
+                    reject(error);
+                }
+                resolve(data.toString());
+            });
         });
-    });
-}
+    }
 
-// PROJECT
+    readProjectTags() {
+        let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
+        return this.readFile(tags);
+    }
 
-// export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
-//     let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
-//     let stream = fs.createReadStream(tags);
-//     stream.on("data", data);
-//     stream.on("error", error);
-//     stream.on("end", end);
-// }
-
-export function asyncReadProjectTags() {
-    let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
-    return asyncReadFile(tags);
-}
-
-export function asyncReadFile(filename: string) {
-    return new Promise<string>((resolve, reject) => {
-        let stream = fs.createReadStream(filename);
-
-        let data = "";
-        stream.on("data", buf => {
-            data += buf.toString();
-        });
-
-        let error = "";
-        stream.on("error", buf => {
-            error += buf.toString();
-        });
-
-        stream.on("end", () => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(data);
-            }
-        });
-    });
 }

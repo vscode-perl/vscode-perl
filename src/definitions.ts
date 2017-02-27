@@ -1,9 +1,15 @@
 import * as vscode from "vscode";
 
 import * as utils from "./utils";
-import * as ctags from "./ctags";
+import { Ctags } from "./ctags";
 
 export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.SignatureHelpProvider {
+    tags: Ctags;
+
+    constructor(tags: Ctags) {
+        this.tags = tags;
+    }
+
     public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location> {
         let wordRange = document.getWordRangeAtPosition(position);
         if (typeof wordRange === "undefined") {
@@ -13,7 +19,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let data: string;
         try {
-            data = await ctags.asyncReadProjectTags();
+            data = await this.tags.readProjectTags();
         } catch (error) {
             console.error("error", error);
             vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
@@ -77,7 +83,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let data: string;
         try {
-            data = await ctags.asyncReadFile(location.uri.fsPath);
+            data = await this.tags.readFile(location.uri.fsPath);
         } catch (error) {
             return null;
         }
@@ -170,7 +176,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let data: string;
         try {
-            data = await ctags.asyncReadFile(location.uri.fsPath);
+            data = await this.tags.readFile(location.uri.fsPath);
         } catch (error) {
             return null;
         }

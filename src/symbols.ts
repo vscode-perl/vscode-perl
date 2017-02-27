@@ -1,13 +1,19 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as ctags from "./ctags";
+import { Ctags, SYMBOL_KINDS } from "./ctags";
 
 export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode.WorkspaceSymbolProvider {
+    tags: Ctags;
+
+    constructor(tags: Ctags) {
+        this.tags = tags;
+    }
+
     public async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
 
         let data: string;
         try {
-            data = await ctags.asyncGenerateFileTags(document.fileName);
+            data = await this.tags.generateFileTags(document.fileName);
         } catch (error) {
             console.error("error", error);
             return null;
@@ -21,7 +27,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode
 
             if (match.length === 4) {
                 let name = match[0];
-                let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
+                let kind = SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
 
                 if (typeof kind === "undefined") {
                     console.error("Unknown symbol kind:", match[3]);
@@ -42,7 +48,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode
     public async provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
         let data: string;
         try {
-            data = await ctags.asyncReadProjectTags();
+            data = await this.tags.readProjectTags();
         } catch (error) {
             console.error("error", error);
             vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
@@ -60,7 +66,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode
 
             if (match.length === 4 && match[0] !== "") {
                 let name = match[0];
-                let kind = ctags.SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
+                let kind = SYMBOL_KINDS[match[3].replace(/[^\w]/g, "")];
                 if (typeof kind === "undefined") {
                     console.error("Unknown symbol kind:", match[3]);
                     kind = vscode.SymbolKind.Variable;

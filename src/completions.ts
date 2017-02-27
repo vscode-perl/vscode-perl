@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import * as ctags from "./ctags";
+import { Ctags, ITEM_KINDS } from "./ctags";
 import * as perl from "./perl";
 import * as utils from "./utils";
 
@@ -12,63 +12,65 @@ interface FilePackageMap {
     [index: string]: string;
 }
 
+interface WordMap {
+    [index: string]: boolean;
+}
+
+function addCompletions(items: vscode.CompletionItem[], words: WordMap, completions: string[], kind: vscode.CompletionItemKind, detail: string) {
+    for (let i = 0; i < completions.length; i++) {
+        let word = completions[i];
+
+        delete words[word];
+
+        let item = new vscode.CompletionItem(word, kind);
+        item.detail = detail;
+
+        items.push(item);
+    }
+}
+
+function addLanguageCompletions(items: vscode.CompletionItem[], words: WordMap) {
+    addCompletions(items, words, perl.KEYWORDS, vscode.CompletionItemKind.Keyword, "perl keyword");
+    addCompletions(items, words, perl.FUNCTIONS, vscode.CompletionItemKind.Function, "perl function");
+    addCompletions(items, words, perl.VARIABLES, vscode.CompletionItemKind.Variable, "perl variable");
+}
+
 export class PerlCompletionProvider implements vscode.CompletionItemProvider {
+    tags: Ctags;
+
+    constructor(tags: Ctags) {
+        this.tags = tags;
+    }
+
     public async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
-        let range = document.getWordRangeAtPosition(position);
-        let pkg = utils.getPackageBefore(document, range);
-        let separator = document.getText(utils.getRangeBefore(range, 2));
-
-        let isMethod = (separator === "->");
-        // console.log("isMethod: ", isMethod);
-
-        // let currentFile = document.uri.fsPath.replace(vscode.workspace.rootPath, ".");
-        // console.log(currentFile);
-
-        let word: RegExpExecArray;
         let text = document.getText();
-        let words = {};
+
+        let words: WordMap = {};
+        let word: RegExpExecArray;
         while (word = perl.CONFIG.wordPattern.exec(text)) {
             words[word[0]] = true;
         }
 
-        let currentWord = document.getText(range);
+        let currentWordRange = document.getWordRangeAtPosition(position);
+        let currentWord = document.getText(currentWordRange);
         delete words[currentWord];
 
         let items: vscode.CompletionItem[] = [];
-        for (let i = 0; i < perl.KEYWORDS.length; i++) {
-            delete words[perl.KEYWORDS[i]];
-            let item = new vscode.CompletionItem(perl.KEYWORDS[i]);
-            item.kind = vscode.CompletionItemKind.Keyword;
-            item.detail = "perl keyword";
-            items.push(item);
-        }
-        for (let i = 0; i < perl.FUNCTIONS.length; i++) {
-            delete words[perl.FUNCTIONS[i]];
-            let item = new vscode.CompletionItem(perl.FUNCTIONS[i]);
-            item.kind = vscode.CompletionItemKind.Function;
-            item.detail = "perl function";
-            items.push(item);
-        }
-        for (let i = 0; i < perl.VARIABLES.length; i++) {
-            delete words[perl.VARIABLES[i]];
-            let item = new vscode.CompletionItem(perl.VARIABLES[i]);
-            item.kind = vscode.CompletionItemKind.Variable;
-            item.detail = "perl variable";
-            items.push(item);
-        }
+        addLanguageCompletions(items, words);
 
-        let useData: string;
+        let useTags: string;
+        let projectTags: string;
         try {
-            useData = await ctags.asyncGenerateFileUseTags(document.fileName);
+            useTags = await this.tags.generateFileUseTags(document.fileName);
+            projectTags = await this.tags.readProjectTags();
         } catch (error) {
             console.error("error", error);
             return null;
         }
 
         let usedPackages: string[] = [];
-        let currentPackage: string = "";
-
-        let useLines = useData.split("\n");
+        let currentPackage = "";
+        let useLines = useTags.split("\n");
 
         for (let i = 0; i < useLines.length; i++) {
             let match = useLines[i].split("\t");
@@ -88,15 +90,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         let fileItems: FileCompletionItems = {};
         let packageItems: vscode.CompletionItem[] = [];
 
-        let data: string;
-        try {
-            data = await ctags.asyncReadProjectTags();
-        } catch (error) {
-            console.error("error", error);
-            return null;
-        }
-
-        let lines = data.split("\n");
+        let lines = projectTags.split("\n");
         for (let i = 0; i < lines.length; i++) {
             let match = lines[i].split("\t");
 
@@ -104,7 +98,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
                 fileItems[match[1]] = fileItems[match[1]] || [];
 
                 let item = new vscode.CompletionItem(match[0]);
-                item.kind = ctags.ITEM_KINDS[match[3].replace(/[^\w]/g, "")];
+                item.kind = ITEM_KINDS[match[3].replace(/[^\w]/g, "")];
                 item.detail = match[1];
 
                 if (match[3].replace(/[^\w]/g, "") === "p") {
@@ -120,6 +114,10 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
 
             }
         }
+
+        let pkg = utils.getPackageBefore(document, currentWordRange);
+        let separator = document.getText(utils.getRangeBefore(currentWordRange, 2));
+        let isMethod = (separator === "->");
 
         if (filePackage[pkg]) {
             let file = filePackage[pkg];

@@ -23,6 +23,14 @@
   "activationEvents": [
     "onLanguage:perl"
   ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "perl.generateTags",
+        "title": "Perl: Generate Tags"
+      }
+    ]
+  },
   "main": "./out/src/extension",
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
