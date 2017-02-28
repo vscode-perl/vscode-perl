@@ -116,6 +116,11 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let callIndex = callText.lastIndexOf("(");
 
+        if (callIndex < 0) {
+            console.log("could not find opening parens");
+            return null;
+        }
+
         while (offset > -1) {
             let char = callText[offset];
             switch (char) {
@@ -145,6 +150,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
             }
             offset--;
         }
+
 
         let callPosition = new vscode.Position(position.line, callIndex);
 
