@@ -1,14 +1,25 @@
 {
   "name": "vscode-perl",
-  "description": "perl!",
+  "displayName": "Perl",
+  "description": "Perl completions and more via ctags.",
   "version": "0.3.0",
+  "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/henriiik/vscode-perl"
+  },
+  "bugs": {
+    "url": "https://github.com/henriiik/vscode-perl/issues"
+  },
+  "homepage": "https://github.com/henriiik/vscode-perl",
+  "categories": [
+    "Languages"
+  ],
   "publisher": "henriiik",
   "engines": {
-    "vscode": "^1.9.0"
+    "vscode": "^1.10.0"
   },
-  "categories": [
-    "Other"
-  ],
   "activationEvents": [
     "onLanguage:perl"
   ],
@@ -20,10 +31,10 @@
   },
   "devDependencies": {
     "@types/mocha": "^2.2.32",
-    "@types/node": "^6.0.40",
+    "@types/node": "^6.0.52",
     "mocha": "^2.3.3",
-    "tslint": "^4.4.2",
-    "typescript": "^2.2.0",
-    "vscode": "^1.0.3"
+    "tslint": "^4.5.1",
+    "typescript": "^2.2.1",
+    "vscode": "^1.0.5"
   }
 }
