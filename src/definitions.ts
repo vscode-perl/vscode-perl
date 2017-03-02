@@ -156,10 +156,15 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let location: vscode.Location;
         try {
-            location = await this.provideDefinition(document, position, token);
+            location = await this.provideDefinition(document, callPosition, token);
         } catch (error) {
             console.error("error", error);
             vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
+            return null;
+        }
+
+        if (!location) {
+            console.error("could not definition!");
             return null;
         }
 
