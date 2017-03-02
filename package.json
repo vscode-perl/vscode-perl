@@ -2,7 +2,7 @@
   "name": "vscode-perl",
   "displayName": "Perl",
   "description": "Perl completions and more via ctags.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
   "license": "MIT",
   "repository": {
