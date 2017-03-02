@@ -77,13 +77,13 @@ export function asyncGenerateFileUseTags(fileName: string) {
 
 // PROJECT
 
-export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
-    let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
-    let stream = fs.createReadStream(tags);
-    stream.on("data", data);
-    stream.on("error", error);
-    stream.on("end", end);
-}
+// export function readProject(data: (data: Buffer) => void, error: (error: Buffer) => void, end: () => void) {
+//     let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
+//     let stream = fs.createReadStream(tags);
+//     stream.on("data", data);
+//     stream.on("error", error);
+//     stream.on("end", end);
+// }
 
 export function asyncReadProjectTags() {
     let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
