@@ -4,7 +4,6 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CompletionItemKind, SymbolKind } from "vscode";
 
-const TAGS_FILE = ".vstags";
 const DEFAULT_ARGS = ["--languages=perl", "-n", "--fields=k"];
 const EXTRA = {
     "use": "--regex-perl=\/^[ \\t]*use[ \\t]+['\"]*([A-Za-z][A-Za-z0-9:]+)['\" \\t]*;\/\\1\/u,use,uses\/",
@@ -46,46 +45,53 @@ export class Ctags {
 
     private run(args: string[]) {
         return new Promise<string>((resolve, reject) => {
-            let env = { cwd: vscode.workspace.rootPath };
-            let cb = (error: Error, stdout: string, stderr: string) => {
+            let options = {
+                cwd: vscode.workspace.rootPath
+            };
+            let callback = (error: Error, stdout: string, stderr: string) => {
                 if (error) {
                     reject(error);
                 }
                 resolve(stdout);
             };
 
-            cp.execFile("ctags", args, env, cb);
+            cp.execFile("ctags", args, options, callback);
         });
     }
 
+    getFileName(): string {
+        return vscode.workspace.getConfiguration("perl.ctags").get("tagsfile", ".vstags");
+    }
+
     generateProjectTagsFile(): Promise<void> {
-        let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", TAGS_FILE]);
+        let filename = this.getFileName();
+        let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", filename]);
         return this.checkVersion()
             .then(() => this.run(args))
             .then(out => {
-                vscode.window.setStatusBarMessage(TAGS_FILE + " file generated.", 5000);
+                vscode.window.setStatusBarMessage(filename + " file generated.", 5000);
             });
     }
 
-    generateFileTags(fileName: string): Promise<string> {
-        let args = DEFAULT_ARGS.concat(["-f", "-", fileName]);
+    generateFileTags(filename: string): Promise<string> {
+        let args = DEFAULT_ARGS.concat(["-f", "-", filename]);
         return this.checkVersion()
             .then(() => this.run(args));
     }
 
-    generateFileUseTags(fileName: string): Promise<string> {
-        let args = DEFAULT_ARGS.concat([EXTRA["use"], "-f", "-", fileName]);
+    generateFileUseTags(filename: string): Promise<string> {
+        let args = DEFAULT_ARGS.concat([EXTRA["use"], "-f", "-", filename]);
         return this.checkVersion()
             .then(() => this.run(args));
     }
 
     // reading tags (and other) files
 
-    readFile(fileName: string) {
+    readFile(filename: string) {
         return new Promise<string>((resolve, reject) => {
-            fs.readFile(fileName, (error, data) => {
+            fs.readFile(filename, (error, data) => {
                 if (error) {
-                    reject(error);
+                    return reject(error);
                 }
                 resolve(data.toString());
             });
@@ -93,8 +99,8 @@ export class Ctags {
     }
 
     readProjectTags() {
-        let tags = path.join(vscode.workspace.rootPath, TAGS_FILE);
-        return this.readFile(tags);
+        let filename = path.join(vscode.workspace.rootPath, this.getFileName());
+        return this.readFile(filename);
     }
 
 }

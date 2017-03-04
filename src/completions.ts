@@ -161,7 +161,6 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         }
 
         let keys = Object.keys(words);
-        // console.log(keys.length);
         for (let i = 0; i < keys.length; i++) {
             let item = new vscode.CompletionItem(keys[i]);
             item.kind = vscode.CompletionItemKind.Text;

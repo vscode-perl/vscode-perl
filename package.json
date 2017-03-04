@@ -29,7 +29,33 @@
         "command": "perl.generateTags",
         "title": "Perl: Generate Tags"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Perl configuration",
+      "properties": {
+        "perl.ctags.executable": {
+          "type": "string",
+          "default": "ctags",
+          "description": "The name or path to the ctags executable that will be used to generate tags."
+        },
+        "perl.ctags.tagsfile": {
+          "type": "string",
+          "default": ".vstags",
+          "description": "The name of the tagsfile that will be generated in your workspace."
+        },
+        "perl.format.executable": {
+          "type": "string",
+          "default": "perltidy",
+          "description": "The name or path to the perltidy executable that will be used to format code."
+        },
+        "perl.format.container": {
+          "type": "string",
+          "default": "",
+          "description": "The name of a docker container that will be used to run perltidy. Leave blank if you dont want to use docker."
+        }
+      }
+    }
   },
   "main": "./out/src/extension",
   "scripts": {

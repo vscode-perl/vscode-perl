@@ -11,30 +11,52 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
                 );
             }
 
-            let newText = "";
-            let oldText = document.getText(range);
-            // let child = cp.spawn("perltidy.bat", ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); // , "-otr"
-            let child = cp.spawn("docker", ["exec", "-i", "myconfigura", "perltidy", "-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]); // , "-otr"
-            child.stdin.write(oldText);
+            let config = vscode.workspace.getConfiguration("perl.format");
+
+            let executable = config.get("executable", "perltidy");
+            let args = ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]; // , "-otr"
+
+            let container = config.get("container", "");
+            if (container !== "") {
+                args = ["exec", "-i", container, executable].concat(args);
+                executable = "docker";
+            }
+
+            let text = document.getText(range);
+            let child = cp.spawn(executable, args);
+            child.stdin.write(text);
             child.stdin.end();
 
+            let stdout = "";
             child.stdout.on("data", (out: Buffer) => {
-                newText += out.toString();
+                stdout += out.toString();
             });
 
+            let stderr = "";
             child.stderr.on("data", (out: Buffer) => {
-                console.error("err", out.toString());
+                stderr += out.toString();
             });
 
-            child.on("error", (out: Buffer) => {
-                console.error(out);
+            let error: Error;
+            child.on("error", (err: Error) => {
+                error = err;
             });
 
-            child.on("close", () => {
-                if (!oldText.endsWith("\n")) {
-                    newText = newText.slice(0, -1); // remove trailing newline
+            child.on("close", (code, signal) => {
+                let edits = [];
+
+                if (error) {
+                    vscode.window.showErrorMessage(`Could not format, code: ${code}, error: "${error.message}"`);
+                } else if (stderr) {
+                    vscode.window.showErrorMessage(`Could not format, code: ${code}, error: "${stderr}"`);
+                } else {
+                    if (!text.endsWith("\n")) {
+                        stdout = stdout.slice(0, -1); // remove trailing newline
+                    }
+                    edits.push(new vscode.TextEdit(range, stdout));
                 }
-                resolve([new vscode.TextEdit(range, newText)]);
+
+                resolve(edits);
             });
         });
     }
