@@ -2,6 +2,12 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEditProvider {
+    channel: vscode.OutputChannel;
+
+    constructor(channel: vscode.OutputChannel) {
+        this.channel = channel;
+    }
+
     public provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Thenable<vscode.TextEdit[]> {
         return new Promise((resolve, reject) => {
             if (range.start.line !== range.end.line) {
@@ -11,12 +17,12 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
                 );
             }
 
-            let config = vscode.workspace.getConfiguration("perl.format");
+            let config = vscode.workspace.getConfiguration("perl");
 
-            let executable = config.get("executable", "perltidy");
+            let executable = config.get("perltidy", "perltidy");
             let args = ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]; // , "-otr"
 
-            let container = config.get("container", "");
+            let container = config.get("perltidyContainer", "");
             if (container !== "") {
                 args = ["exec", "-i", container, executable].concat(args);
                 executable = "docker";
@@ -45,10 +51,21 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
             child.on("close", (code, signal) => {
                 let edits = [];
 
+                let message = "";
+
                 if (error) {
-                    vscode.window.showErrorMessage(`Could not format, code: ${code}, error: "${error.message}"`);
+                    message = error.message;
                 } else if (stderr) {
-                    vscode.window.showErrorMessage(`Could not format, code: ${code}, error: "${stderr}"`);
+                    message = stderr;
+                } else if (code !== 0) {
+                    message = stdout;
+                }
+
+                if (message || code !== 0) {
+                    message = message.trim();
+                    let formatted = `Could not format, code: ${code}, error: ${message}`;
+                    this.channel.appendLine(formatted);
+                    this.channel.show();
                 } else {
                     if (!text.endsWith("\n")) {
                         stdout = stdout.slice(0, -1); // remove trailing newline

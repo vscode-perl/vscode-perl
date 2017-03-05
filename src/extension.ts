@@ -12,6 +12,7 @@ import { PerlCompletionProvider } from "./completions";
 import { PerlFormattingProvider } from "./format";
 
 export function activate(context: vscode.ExtensionContext) {
+    let channel = vscode.window.createOutputChannel("Perl");
     let tags = new Ctags();
 
     tags.checkVersion()
@@ -46,6 +47,6 @@ export function activate(context: vscode.ExtensionContext) {
         tags.generateProjectTagsFile();
     });
 
-    let formatProvider = new PerlFormattingProvider();
+    let formatProvider = new PerlFormattingProvider(channel);
     context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, formatProvider));
 }
