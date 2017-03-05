@@ -1,74 +1,72 @@
 {
-  "name": "vscode-perl",
-  "displayName": "Perl",
-  "description": "Perl completions and more via ctags.",
-  "version": "0.4.0",
-  "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/henriiik/vscode-perl"
-  },
-  "bugs": {
-    "url": "https://github.com/henriiik/vscode-perl/issues"
-  },
-  "homepage": "https://github.com/henriiik/vscode-perl",
-  "categories": [
-    "Languages"
-  ],
-  "publisher": "henriiik",
-  "engines": {
-    "vscode": "^1.10.0"
-  },
-  "activationEvents": [
-    "onLanguage:perl"
-  ],
-  "contributes": {
-    "commands": [
-      {
-        "command": "perl.generateTags",
-        "title": "Perl: Generate Tags"
-      }
+    "name": "vscode-perl",
+    "displayName": "Perl",
+    "description": "Perl code intelligence via ctags.",
+    "version": "0.5.0",
+    "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/henriiik/vscode-perl"
+    },
+    "bugs": {
+        "url": "https://github.com/henriiik/vscode-perl/issues"
+    },
+    "homepage": "https://github.com/henriiik/vscode-perl",
+    "categories": [
+        "Languages"
     ],
-    "configuration": {
-      "type": "object",
-      "title": "Perl configuration",
-      "properties": {
-        "perl.ctagsPath": {
-          "type": "string",
-          "default": "ctags",
-          "description": "The name or path to the ctags executable that will be used to generate tags."
-        },
-        "perl.ctagsFile": {
-          "type": "string",
-          "default": ".vstags",
-          "description": "The name of the tagsfile that will be generated in your workspace."
-        },
-        "perl.perltidy": {
-          "type": "string",
-          "default": "perltidy",
-          "description": "The name or path to the perltidy executable that will be used when formatting code."
-        },
-        "perl.perltidyContainer": {
-          "type": "string",
-          "default": "",
-          "description": "The name of a docker container that will be used to run perltidy. Leave blank if you dont want to use docker."
+    "publisher": "henriiik",
+    "engines": {
+        "vscode": "^1.10.0"
+    },
+    "activationEvents": [
+        "onLanguage:perl"
+    ],
+    "contributes": {
+        "commands": [{
+            "command": "perl.generateTags",
+            "title": "Perl: Generate Tags"
+        }],
+        "configuration": {
+            "type": "object",
+            "title": "Perl configuration",
+            "properties": {
+                "perl.ctagsPath": {
+                    "type": "string",
+                    "default": "ctags",
+                    "description": "The name or path to the ctags executable that will be used to generate tags."
+                },
+                "perl.ctagsFile": {
+                    "type": "string",
+                    "default": ".vstags",
+                    "description": "The name of the tagsfile that will be generated in your workspace."
+                },
+                "perl.perltidy": {
+                    "type": "string",
+                    "default": "perltidy",
+                    "description": "The name or path to the perltidy executable that will be used when formatting code."
+                },
+                "perl.perltidyContainer": {
+                    "type": "string",
+                    "default": "",
+                    "description": "The name of a docker container that will be used to run perltidy. Leave blank if you dont want to use docker."
+                }
+            }
         }
-      }
+    },
+    "main": "./out/src/extension",
+    "scripts": {
+        "vscode:prepublish": "tsc -p ./",
+        "compile": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+        "@types/mocha": "^2.2.32",
+        "@types/node": "^6.0.52",
+        "mocha": "^2.3.3",
+        "tslint": "^4.5.1",
+        "typescript": "^2.2.1",
+        "vscode": "^1.0.5"
     }
-  },
-  "main": "./out/src/extension",
-  "scripts": {
-    "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install"
-  },
-  "devDependencies": {
-    "@types/mocha": "^2.2.32",
-    "@types/node": "^6.0.52",
-    "mocha": "^2.3.3",
-    "tslint": "^4.5.1",
-    "typescript": "^2.2.1",
-    "vscode": "^1.0.5"
-  }
 }
