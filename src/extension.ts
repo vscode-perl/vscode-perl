@@ -30,9 +30,6 @@ export function activate(context: vscode.ExtensionContext) {
             context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(perl.MODE, symbolProvider));
             context.subscriptions.push(vscode.languages.registerWorkspaceSymbolProvider(symbolProvider));
 
-            let formatProvider = new PerlFormattingProvider();
-            context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, formatProvider));
-
             vscode.workspace.onDidSaveTextDocument(document => {
                 if (document.languageId === "perl") {
                     tags.generateProjectTagsFile();
@@ -42,10 +39,13 @@ export function activate(context: vscode.ExtensionContext) {
             tags.generateProjectTagsFile();
         })
         .catch(error => {
-            vscode.window.showInformationMessage("Could no find a compatible version of Exuberant Ctags.", );
+            vscode.window.showInformationMessage("Could no find a compatible version of Exuberant Ctags.");
         });
 
     vscode.commands.registerCommand("perl.generateTags", () => {
         tags.generateProjectTagsFile();
     });
+
+    let formatProvider = new PerlFormattingProvider();
+    context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, formatProvider));
 }
