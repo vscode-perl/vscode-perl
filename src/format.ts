@@ -49,8 +49,6 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
             });
 
             child.on("close", (code, signal) => {
-                let edits = [];
-
                 let message = "";
 
                 if (error) {
@@ -61,20 +59,20 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
                     message = stdout;
                 }
 
-                if (message || code !== 0) {
+                if (code !== 0) {
                     message = message.trim();
                     let formatted = `Could not format, code: ${code}, error: ${message}`;
-                    this.channel.appendLine(formatted);
-                    this.channel.show();
+                    reject(formatted);
                 } else {
                     if (!text.endsWith("\n")) {
                         stdout = stdout.slice(0, -1); // remove trailing newline
                     }
-                    edits.push(new vscode.TextEdit(range, stdout));
+                    resolve(new vscode.TextEdit(range, stdout));
                 }
-
-                resolve(edits);
             });
+        }).catch(reason => {
+            this.channel.appendLine(reason);
+            this.channel.show();
         });
     }
 }
