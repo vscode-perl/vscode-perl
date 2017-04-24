@@ -67,7 +67,7 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
                     if (!text.endsWith("\n")) {
                         stdout = stdout.slice(0, -1); // remove trailing newline
                     }
-                    resolve(new vscode.TextEdit(range, stdout));
+                    resolve([new vscode.TextEdit(range, stdout)]);
                 }
             });
         }).catch(reason => {
