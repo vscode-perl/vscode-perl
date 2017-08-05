@@ -44,7 +44,11 @@ export function activate(context: vscode.ExtensionContext) {
         });
 
     vscode.commands.registerCommand("perl.generateTags", () => {
-        tags.generateProjectTagsFile();
+        if (vscode.workspace.rootPath === undefined) {
+            vscode.window.showInformationMessage("Can only generate tags when a workspace is open.");
+        } else {
+            tags.generateProjectTagsFile();
+        }
     });
 
     let formatProvider = new PerlFormattingProvider(channel);

@@ -30,6 +30,14 @@ export const SYMBOL_KINDS = {
 export class Ctags {
     versionOk = false;
 
+    getTagsFileName(): string {
+        return vscode.workspace.getConfiguration("perl").get("ctagsFile", ".vstags");
+    }
+
+    getExecutablePath(): string {
+        return vscode.workspace.getConfiguration("perl").get("ctagsPath", ".vstags");
+    }
+
     checkVersion(): Promise<void> {
         if (this.versionOk) {
             return Promise.resolve();
@@ -55,16 +63,16 @@ export class Ctags {
                 resolve(stdout);
             };
 
-            cp.execFile("ctags", args, options, callback);
+            cp.execFile(this.getExecutablePath(), args, options, callback);
         });
     }
 
-    getFileName(): string {
-        return vscode.workspace.getConfiguration("perl.ctags").get("tagsfile", ".vstags");
-    }
-
     generateProjectTagsFile(): Promise<void> {
-        let filename = this.getFileName();
+        if (vscode.workspace.rootPath === undefined) {
+            return Promise.resolve();
+        }
+
+        let filename = this.getTagsFileName();
         let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", filename]);
         return this.checkVersion()
             .then(() => this.run(args))
@@ -99,8 +107,16 @@ export class Ctags {
     }
 
     readProjectTags() {
-        let filename = path.join(vscode.workspace.rootPath, this.getFileName());
+        let filename = path.join(vscode.workspace.rootPath, this.getTagsFileName());
         return this.readFile(filename);
+    }
+
+    projectOrFileTags(filename: string): Promise<string> {
+        if (vscode.workspace.rootPath === undefined) {
+            return this.generateFileTags(filename);
+        } else {
+            return this.readProjectTags();
+        }
     }
 
 }

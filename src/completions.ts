@@ -58,11 +58,11 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         let items: vscode.CompletionItem[] = [];
         addLanguageCompletions(items, words);
 
-        let useTags: string;
-        let projectTags: string;
+        let useData: string;
+        let data: string;
         try {
-            useTags = await this.tags.generateFileUseTags(document.fileName);
-            projectTags = await this.tags.readProjectTags();
+            useData = await this.tags.generateFileUseTags(document.fileName);
+            data = await this.tags.projectOrFileTags(document.fileName);
         } catch (error) {
             console.error("error", error);
             return null;
@@ -70,7 +70,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
 
         let usedPackages: string[] = [];
         let currentPackage = "";
-        let useLines = useTags.split("\n");
+        let useLines = useData.split("\n");
 
         for (let i = 0; i < useLines.length; i++) {
             let match = useLines[i].split("\t");
@@ -90,7 +90,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         let fileItems: FileCompletionItems = {};
         let packageItems: vscode.CompletionItem[] = [];
 
-        let lines = projectTags.split("\n");
+        let lines = data.split("\n");
         for (let i = 0; i < lines.length; i++) {
             let match = lines[i].split("\t");
 

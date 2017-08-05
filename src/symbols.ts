@@ -46,6 +46,10 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode
     }
 
     public async provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
+        if (vscode.workspace.rootPath === undefined) {
+            return null;
+        }
+
         let data: string;
         try {
             data = await this.tags.readProjectTags();
@@ -76,7 +80,8 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider, vscode
                 let range = new vscode.Range(lineNo, 0, lineNo, 0);
 
                 let file = match[1].replace(/^\.\\/, "");
-                let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, file));
+                let filePath = path.join(vscode.workspace.rootPath || "", file);
+                let uri = vscode.Uri.file(filePath);
 
                 let info = new vscode.SymbolInformation(name, kind, range, uri);
 

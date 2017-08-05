@@ -21,7 +21,8 @@
         "vscode": "^1.10.0"
     },
     "activationEvents": [
-        "onLanguage:perl"
+        "onLanguage:perl",
+        "onCommand:perl.generateTags"
     ],
     "contributes": {
         "commands": [{
