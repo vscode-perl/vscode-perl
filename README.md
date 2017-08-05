@@ -6,6 +6,10 @@ Formatting is also supported with use of [Perl::Tidy](https://metacpan.org/pod/d
 
 This extension is current moddeled after how I work with perl, so your mileage may wary.
 
+# How To Use
+
+Follow the instructions below to install `ctags`, and then open a file with the language mode `perl`. If the file is in a workspace, a `.vstags` file will be created automatically and updated on save. if you open a file when not in a workspace tags will be generated on the fly but some functionality will not be enabled. You can also force generation of tags with the command "Perl: Generate Tags" (ex. after a git checkout).
+
 # Exuberant Ctags
 
 By default the extension will look for a `ctags` executable in your path, you can specify a diffrent executable with the setting `perl.ctags.executable`
