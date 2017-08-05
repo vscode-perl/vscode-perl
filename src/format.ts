@@ -73,6 +73,7 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
         }).catch(reason => {
             this.channel.appendLine(reason);
             this.channel.show();
+            return null;
         });
     }
 }

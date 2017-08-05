@@ -38,7 +38,8 @@ export function getMatchLocation(line: string): vscode.Location {
     let name = match[0];
     let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-    let uri = vscode.Uri.file(path.join(vscode.workspace.rootPath, match[1]));
+    let filePath = path.join(vscode.workspace.rootPath || "", match[1]);
+    let uri = vscode.Uri.file(filePath);
     let pos = new vscode.Position(lineNo, 0);
 
     return new vscode.Location(uri, pos);

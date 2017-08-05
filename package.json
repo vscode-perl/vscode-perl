@@ -2,7 +2,7 @@
     "name": "vscode-perl",
     "displayName": "Perl",
     "description": "Perl code intelligence via ctags.",
-    "version": "0.5.2",
+    "version": "1.14.2",
     "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
     "license": "MIT",
     "repository": {
@@ -18,16 +18,19 @@
     ],
     "publisher": "henriiik",
     "engines": {
-        "vscode": "^1.10.0"
+        "vscode": "^1.14.0"
     },
     "activationEvents": [
-        "onLanguage:perl"
+        "onLanguage:perl",
+        "onCommand:perl.generateTags"
     ],
     "contributes": {
-        "commands": [{
-            "command": "perl.generateTags",
-            "title": "Perl: Generate Tags"
-        }],
+        "commands": [
+            {
+                "command": "perl.generateTags",
+                "title": "Perl: Generate Tags"
+            }
+        ],
         "configuration": {
             "type": "object",
             "title": "Perl configuration",
@@ -65,8 +68,8 @@
         "@types/mocha": "^2.2.32",
         "@types/node": "^6.0.52",
         "mocha": "^2.3.3",
-        "tslint": "^4.5.1",
-        "typescript": "^2.2.1",
-        "vscode": "^1.0.5"
+        "tslint": "^5.5.0",
+        "typescript": "^2.4.2",
+        "vscode": "^1.1.4"
     }
 }

@@ -19,7 +19,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
 
         let data: string;
         try {
-            data = await this.tags.readProjectTags();
+            data = await this.tags.projectOrFileTags(document.fileName);
         } catch (error) {
             console.error("error", error);
             vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
