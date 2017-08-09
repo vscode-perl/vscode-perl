@@ -1,10 +1,10 @@
 # Perl for Visual Studio Code
 
-This extension aims to bring code intelligence for the perl language to [Visual Studio Code](https://code.visualstudio.com/), mainly through the use of [Exuberant Ctags](http://ctags.sourceforge.net/).
+This extension aims to bring code intelligence for the Perl language to [Visual Studio Code](https://code.visualstudio.com/), mainly through the use of [Exuberant Ctags](http://ctags.sourceforge.net/).
 
 Formatting is also supported with use of [Perl::Tidy](https://metacpan.org/pod/distribution/Perl-Tidy/lib/Perl/Tidy.pod).
 
-This extension is current moddeled after how I work with perl, so your mileage may wary.
+This extension is current modeled after how I work with Perl, so your mileage may vary.
 
 # How To Use
 
@@ -42,4 +42,4 @@ apt-get install ctags
 
 # Perl::Tidy
 
-Install `Perl::Tidy` and make sure it's avaliable on your `PATH` or specify it's location in the `perl.perltidy` setting. If you are using docker you can specify in the setting `perl.perltidyContainer` the name of a container in which you have installed `Perl::Tidy`.
+Install `Perl::Tidy` and make sure it's available on your `PATH` or specify it's location in the `perl.perltidy` setting. If you are using docker you can specify in the setting `perl.perltidyContainer` the name of a container in which you have installed `Perl::Tidy`.
