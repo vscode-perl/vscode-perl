@@ -34,10 +34,14 @@ choco install ctags
 
 ### Linux
 
-You can install ctags with you prefered package manager.
+You can install ctags with your prefered package manager.
 
 ```sh
-apt-get install ctags
+# Debian-based systems (Ubuntu, Mint, etc.)
+apt-get install exuberant-ctags
+
+# Red Hat-based systems (Red Hat, Fedora, CentOS)
+yum install ctags
 ```
 
 # Perl::Tidy
