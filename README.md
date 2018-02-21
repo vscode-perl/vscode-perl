@@ -46,4 +46,6 @@ yum install ctags
 
 # Perl::Tidy
 
-Install `Perl::Tidy` and make sure it's available on your `PATH` or specify it's location in the `perl.perltidy` setting. If you are using docker you can specify in the setting `perl.perltidyContainer` the name of a container in which you have installed `Perl::Tidy`.
+Install `Perl::Tidy` and make sure it's available on your `PATH` or specify it's location in the `perl.perltidy` setting. If the value for `perl.perltidy` is left empty, no formatting will be applied.
+
+If you are using docker you can specify in the setting `perl.perltidyContainer` the name of a container in which you have installed `Perl::Tidy`.
