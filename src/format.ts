@@ -9,6 +9,11 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
     }
 
     public provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Thenable<vscode.TextEdit[]> {
+        // if perltidy is not defined, then skip the formatting
+        if (!vscode.workspace.getConfiguration("perl").get("perltidy")) {
+            return;
+        }
+
         return new Promise((resolve, reject) => {
             if (range.start.line !== range.end.line) {
                 range = range.with(
