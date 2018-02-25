@@ -12,24 +12,41 @@ import { PerlCompletionProvider } from "./completions";
 import { PerlFormattingProvider } from "./format";
 
 export function activate(context: vscode.ExtensionContext) {
-    let channel = vscode.window.createOutputChannel("Perl");
     let tags = new Ctags();
 
-    tags.checkVersion()
+    tags
+        .checkVersion()
         .then(() => {
             vscode.languages.setLanguageConfiguration(perl.MODE.language, perl.CONFIG);
 
             let definitionProvider = new PerlDefinitionProvider(tags);
-            context.subscriptions.push(vscode.languages.registerDefinitionProvider(perl.MODE, definitionProvider));
-            context.subscriptions.push(vscode.languages.registerHoverProvider(perl.MODE, definitionProvider));
-            context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(perl.MODE, definitionProvider, "(", ","));
+            context.subscriptions.push(
+                vscode.languages.registerDefinitionProvider(perl.MODE, definitionProvider)
+            );
+            context.subscriptions.push(
+                vscode.languages.registerHoverProvider(perl.MODE, definitionProvider)
+            );
+            context.subscriptions.push(
+                vscode.languages.registerSignatureHelpProvider(
+                    perl.MODE,
+                    definitionProvider,
+                    "(",
+                    ","
+                )
+            );
 
             let completionProvider = new PerlCompletionProvider(tags);
-            context.subscriptions.push(vscode.languages.registerCompletionItemProvider(perl.MODE, completionProvider));
+            context.subscriptions.push(
+                vscode.languages.registerCompletionItemProvider(perl.MODE, completionProvider)
+            );
 
             let symbolProvider = new PerlSymbolProvider(tags);
-            context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(perl.MODE, symbolProvider));
-            context.subscriptions.push(vscode.languages.registerWorkspaceSymbolProvider(symbolProvider));
+            context.subscriptions.push(
+                vscode.languages.registerDocumentSymbolProvider(perl.MODE, symbolProvider)
+            );
+            context.subscriptions.push(
+                vscode.languages.registerWorkspaceSymbolProvider(symbolProvider)
+            );
 
             vscode.workspace.onDidSaveTextDocument(document => {
                 if (document.languageId === "perl") {
@@ -40,17 +57,23 @@ export function activate(context: vscode.ExtensionContext) {
             tags.generateProjectTagsFile();
         })
         .catch(error => {
-            vscode.window.showInformationMessage("Could no find a compatible version of Exuberant Ctags.");
+            vscode.window.showInformationMessage(
+                "Could no find a compatible version of Exuberant Ctags."
+            );
         });
 
     vscode.commands.registerCommand("perl.generateTags", () => {
         if (vscode.workspace.rootPath === undefined) {
-            vscode.window.showInformationMessage("Can only generate tags when a workspace is open.");
+            vscode.window.showInformationMessage(
+                "Can only generate tags when a workspace is open."
+            );
         } else {
             tags.generateProjectTagsFile();
         }
     });
 
-    let formatProvider = new PerlFormattingProvider(channel);
-    context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, formatProvider));
+    let formatProvider = new PerlFormattingProvider();
+    context.subscriptions.push(
+        vscode.languages.registerDocumentRangeFormattingEditProvider(perl.MODE, formatProvider)
+    );
 }

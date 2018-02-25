@@ -1,91 +1,96 @@
 import * as vscode from "vscode";
+import * as path from "path";
 
 import * as utils from "./utils";
 import { Ctags } from "./ctags";
 
-export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.SignatureHelpProvider {
+export class PerlDefinitionProvider
+    implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.SignatureHelpProvider {
     tags: Ctags;
 
     constructor(tags: Ctags) {
         this.tags = tags;
     }
 
-    public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location> {
+    public async provideDefinition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<Option<vscode.Location>> {
         let wordRange = document.getWordRangeAtPosition(position);
-        if (typeof wordRange === "undefined") {
-            console.error("No word at pos!");
-            return null;
+        if (wordRange === undefined) {
+            return;
         }
 
-        let data: string;
-        try {
-            data = await this.tags.projectOrFileTags(document.fileName);
-        } catch (error) {
-            console.error("error", error);
-            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
-            return null;
-        }
+        let dataz = await this.tags.projectOrFileTags(document);
 
         let word = document.getText(wordRange);
         let pkg = utils.getPackageBefore(document, wordRange);
-        // console.log(pkg);
 
         let fileName = document.fileName;
-        // console.log(`Looking for "${word}" in "${fileName}"`);
 
-        let matches: string[] = [];
-        let pkgMatch: string;
+        let matches: { line: string; folder: string }[] = [];
+        let pkgMatch: Option<string>;
+        let pkgMatchFolder = "";
 
-        let lines = data.split(/\r?\n/);
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
-            if (line.startsWith(`${word}\t`)) {
-                matches.push(line);
-            } else if (line.startsWith(`${pkg}\t`)) {
-                let split = line.split("\t");
-                if (split[3] === "p") {
-                    fileName = split[1];
+        for (const tags of dataz) {
+            if (tags instanceof Error) {
+                continue;
+            }
+            const folder = tags.folder;
+            let lines = tags.data.split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                if (line.startsWith(`${word}\t`)) {
+                    matches.push({ line, folder });
+                } else if (line.startsWith(`${pkg}\t`)) {
+                    let split = line.split("\t");
+                    if (split[3] === "p") {
+                        fileName = split[1];
+                    }
+                } else if (line.startsWith(`${pkg}::${word}\t`)) {
+                    pkgMatch = line;
+                    pkgMatchFolder = tags.folder;
                 }
-            } else if (line.startsWith(`${pkg}::${word}\t`)) {
-                pkgMatch = line;
             }
         }
 
-        fileName = fileName.replace(vscode.workspace.rootPath, ".");
+        const workspace = vscode.workspace.getWorkspaceFolder(document.uri);
+        if (workspace !== undefined) {
+            fileName = fileName.replace(workspace.uri.fsPath, ".");
+        }
+
         if (pkgMatch) {
-            return utils.getMatchLocation(pkgMatch);
+            return utils.getMatchLocation(pkgMatch, pkgMatchFolder);
         }
-        for (let i = 0; i < matches.length; i++) {
-            let match = matches[i].split("\t");
 
-            if (fileName === match[1] || (i + 1 === matches.length)) {
-                return utils.getMatchLocation(matches[i]);
+        for (let i = 0; i < matches.length; i++) {
+            let match = matches[i];
+            let split = match.line.split("\t");
+
+            if (fileName === split[1] || i + 1 === matches.length) {
+                return utils.getMatchLocation(match.line, match.folder);
             }
         }
 
-        console.log("Could not find tag");
-        return null;
+        return;
     }
 
-    public async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover> {
-        let location: vscode.Location;
-        try {
-            location = await this.provideDefinition(document, position, token);
-        } catch (error) {
-            console.error("error", error);
-            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
-            return null;
+    public async provideHover(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<Option<vscode.Hover>> {
+        let location = await this.provideDefinition(document, position, token);
+        if (location === undefined) {
+            return;
         }
 
-        if (!location) {
-            return null;
-        }
-
-        let data: string;
-        try {
-            data = await this.tags.readFile(location.uri.fsPath);
-        } catch (error) {
-            return null;
+        let workspace = vscode.workspace.getWorkspaceFolder(document.uri);
+        let data = await this.tags.readFile(location.uri.fsPath);
+        if (data instanceof Error) {
+            console.error(data);
+            return;
         }
 
         let lines = data.split(/\r?\n/);
@@ -102,16 +107,19 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
         }
 
         if (value === "") {
-            return null;
+            return;
         }
 
-        let hover = new vscode.Hover({ language: "perl", value: value, });
+        let hover = new vscode.Hover({ language: "perl", value: value });
 
         return hover;
-
     }
 
-    public async provideSignatureHelp(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.SignatureHelp> {
+    public async provideSignatureHelp(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<Option<vscode.SignatureHelp>> {
         let callRange = new vscode.Range(position.line, 0, position.line, position.character);
         let callText = document.getText(callRange);
 
@@ -123,8 +131,7 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
         let callIndex = callText.lastIndexOf("(");
 
         if (callIndex < 0) {
-            console.log("could not find opening parens");
-            return null;
+            return;
         }
 
         while (offset > -1) {
@@ -157,28 +164,17 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
             offset--;
         }
 
-
         let callPosition = new vscode.Position(position.line, callIndex);
 
-        let location: vscode.Location;
-        try {
-            location = await this.provideDefinition(document, callPosition, token);
-        } catch (error) {
-            console.error("error", error);
-            vscode.window.showErrorMessage(`An error occured while reading tags: ${error}`);
-            return null;
+        let location = await this.provideDefinition(document, callPosition, token);
+        if (location === undefined) {
+            return;
         }
 
-        if (!location) {
-            console.error("could not definition!");
-            return null;
-        }
-
-        let data: string;
-        try {
-            data = await this.tags.readFile(location.uri.fsPath);
-        } catch (error) {
-            return null;
+        let data = await this.tags.readFile(location.uri.fsPath);
+        if (data instanceof Error) {
+            console.error(data);
+            return;
         }
 
         let lines = data.toString().split(/\r?\n/);
@@ -194,10 +190,9 @@ export class PerlDefinitionProvider implements vscode.DefinitionProvider, vscode
         }
 
         // TODO handle fn(['asd', 'omg']) and fn({asd => 'omg'})
-        let params = signature.substring(
-            signature.indexOf("(") + 1,
-            signature.indexOf(")")
-        ).split(",");
+        let params = signature
+            .substring(signature.indexOf("(") + 1, signature.indexOf(")"))
+            .split(",");
         let info = new vscode.SignatureInformation(signature);
         for (let param of params) {
             info.parameters.push(new vscode.ParameterInformation(param.trim()));

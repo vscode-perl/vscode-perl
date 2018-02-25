@@ -2,19 +2,18 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEditProvider {
-    channel: vscode.OutputChannel;
-
-    constructor(channel: vscode.OutputChannel) {
-        this.channel = channel;
-    }
-
-    public provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Thenable<vscode.TextEdit[]> {
+    public async provideDocumentRangeFormattingEdits(
+        document: vscode.TextDocument,
+        range: vscode.Range,
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken
+    ): Promise<vscode.TextEdit[]> {
         // if perltidy is not defined, then skip the formatting
         if (!vscode.workspace.getConfiguration("perl").get("perltidy")) {
-            return;
+            return [];
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise<vscode.TextEdit[]>((resolve, reject) => {
             if (range.start.line !== range.end.line) {
                 range = range.with(
                     range.start.with(range.start.line, 0),
@@ -76,9 +75,8 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
                 }
             });
         }).catch(reason => {
-            this.channel.appendLine(reason);
-            this.channel.show();
-            return null;
+            console.error(reason);
+            return [];
         });
     }
 }

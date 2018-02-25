@@ -16,7 +16,13 @@ interface WordMap {
     [index: string]: boolean;
 }
 
-function addCompletions(items: vscode.CompletionItem[], words: WordMap, completions: string[], kind: vscode.CompletionItemKind, detail: string) {
+function addCompletions(
+    items: vscode.CompletionItem[],
+    words: WordMap,
+    completions: string[],
+    kind: vscode.CompletionItemKind,
+    detail: string
+) {
     for (let i = 0; i < completions.length; i++) {
         let word = completions[i];
 
@@ -31,8 +37,20 @@ function addCompletions(items: vscode.CompletionItem[], words: WordMap, completi
 
 function addLanguageCompletions(items: vscode.CompletionItem[], words: WordMap) {
     addCompletions(items, words, perl.KEYWORDS, vscode.CompletionItemKind.Keyword, "perl keyword");
-    addCompletions(items, words, perl.FUNCTIONS, vscode.CompletionItemKind.Function, "perl function");
-    addCompletions(items, words, perl.VARIABLES, vscode.CompletionItemKind.Variable, "perl variable");
+    addCompletions(
+        items,
+        words,
+        perl.FUNCTIONS,
+        vscode.CompletionItemKind.Function,
+        "perl function"
+    );
+    addCompletions(
+        items,
+        words,
+        perl.VARIABLES,
+        vscode.CompletionItemKind.Variable,
+        "perl variable"
+    );
 }
 
 export class PerlCompletionProvider implements vscode.CompletionItemProvider {
@@ -42,12 +60,16 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         this.tags = tags;
     }
 
-    public async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
+    async provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.CompletionItem[]> {
         let text = document.getText();
 
         let words: WordMap = {};
-        let word: RegExpExecArray;
-        while (word = perl.CONFIG.wordPattern.exec(text)) {
+        let word: RegExpExecArray | null;
+        while ((word = perl.CONFIG.wordPattern.exec(text))) {
             words[word[0]] = true;
         }
 
@@ -58,14 +80,10 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         let items: vscode.CompletionItem[] = [];
         addLanguageCompletions(items, words);
 
-        let useData: string;
-        let data: string;
-        try {
-            useData = await this.tags.generateFileUseTags(document.fileName);
-            data = await this.tags.projectOrFileTags(document.fileName);
-        } catch (error) {
-            console.error("error", error);
-            return null;
+        const useData = await this.tags.generateFileUseTags(document);
+        const dataz = await this.tags.projectOrFileTags(document);
+        if (useData instanceof Error) {
+            return [];
         }
 
         let usedPackages: string[] = [];
@@ -90,34 +108,40 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
         let fileItems: FileCompletionItems = {};
         let packageItems: vscode.CompletionItem[] = [];
 
-        let lines = data.split("\n");
-        for (let i = 0; i < lines.length; i++) {
-            let match = lines[i].split("\t");
+        for (const tags of dataz) {
+            if (tags instanceof Error) {
+                continue;
+            }
+            let lines = tags.data.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+                let match = lines[i].split("\t");
 
-            if (match.length === 4) {
-                fileItems[match[1]] = fileItems[match[1]] || [];
+                if (match.length === 4) {
+                    fileItems[match[1]] = fileItems[match[1]] || [];
 
-                let item = new vscode.CompletionItem(match[0]);
-                item.kind = ITEM_KINDS[match[3].replace(/[^\w]/g, "")];
-                item.detail = match[1];
+                    let item = new vscode.CompletionItem(match[0]);
+                    item.kind = ITEM_KINDS[match[3].replace(/[^\w]/g, "")];
+                    item.detail = match[1];
 
-                if (match[3].replace(/[^\w]/g, "") === "p") {
-                    filePackage[match[0]] = match[1];
-                    packageItems.push(item);
-                } else {
-                    fileItems[match[1]].push(item);
+                    if (match[3].replace(/[^\w]/g, "") === "p") {
+                        filePackage[match[0]] = match[1];
+                        packageItems.push(item);
+                    } else {
+                        fileItems[match[1]].push(item);
 
-                    if (match[0] === "new") {
-                        methodFiles[match[1]] = "1";
+                        if (match[0] === "new") {
+                            methodFiles[match[1]] = "1";
+                        }
                     }
                 }
-
             }
         }
 
-        let pkg = utils.getPackageBefore(document, currentWordRange);
-        let separator = document.getText(utils.getRangeBefore(currentWordRange, 2));
-        let isMethod = (separator === "->");
+        let pkg = currentWordRange ? utils.getPackageBefore(document, currentWordRange) : "";
+        let separator = currentWordRange
+            ? document.getText(utils.getRangeBefore(currentWordRange, 2))
+            : "";
+        let isMethod = separator === "->";
 
         if (filePackage[pkg]) {
             let file = filePackage[pkg];
