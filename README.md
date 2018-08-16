@@ -49,3 +49,5 @@ yum install ctags
 Install `Perl::Tidy` and make sure it's available on your `PATH` or specify it's location in the `perl.perltidy` setting. If the value for `perl.perltidy` is left empty, no formatting will be applied.
 
 If you are using docker you can specify in the setting `perl.perltidyContainer` the name of a container in which you have installed `Perl::Tidy`.
+
+The arguments to perltidy are specified with the `perl.perltidyArgs` setting. This is an array in which each element is a string to be passed to perltidy as a command-line argument (including the leading dash). The default is not to pass any arguments.

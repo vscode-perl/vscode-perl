@@ -24,8 +24,7 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
             let config = vscode.workspace.getConfiguration("perl");
 
             let executable = config.get("perltidy", "perltidy");
-            let args = ["-q", "-et=4", "-t", "-ce", "-l=0", "-bar", "-naws", "-blbs=2", "-mbl=2"]; // , "-otr"
-
+            let args = config.get("perltidyArgs", []);
             let container = config.get("perltidyContainer", "");
             if (container !== "") {
                 args = ["exec", "-i", container, executable].concat(args);

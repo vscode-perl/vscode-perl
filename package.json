@@ -13,7 +13,7 @@
         "url": "https://github.com/henriiik/vscode-perl/issues"
     },
     "homepage": "https://github.com/henriiik/vscode-perl",
-    "categories": ["Languages"],
+    "categories": ["Programming Languages"],
     "publisher": "henriiik",
     "engines": {
         "vscode": "^1.20.1"
@@ -48,6 +48,11 @@
                     "default": "perltidy",
                     "description":
                         "The name or path to the perltidy executable that will be used when formatting code."
+                },
+                "perl.perltidyArgs": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Arguments to perltidy as an array of strings, each element an argument including the leading dash."
                 },
                 "perl.perltidyContainer": {
                     "type": "string",
