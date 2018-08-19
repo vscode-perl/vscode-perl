@@ -35,6 +35,7 @@ export interface TagsFile {
 
 export class Ctags {
     versionOk = false;
+    generatingProjectTags = false;
 
     private getConfiguration(resource?: vscode.Uri): vscode.WorkspaceConfiguration {
         return vscode.workspace.getConfiguration("perl", resource);
@@ -74,7 +75,7 @@ export class Ctags {
                 if (error) {
                     console.error(`command failed: '${file} ${args.join(" ")}'`);
                     console.error(`cwd: '${cwd}'`);
-                    console.error(`error message: 'error.message'`);
+                    console.error(`error message: '${error.message}'`);
                     console.error(`stderr: '${stderr}'`);
                     resolve(error);
                 }
@@ -89,25 +90,54 @@ export class Ctags {
         });
     }
 
-    async generateProjectTagsFile(): Promise<void> {
+    async generateProjectTagsFile(): Promise<Array<Result<String>>> {
+        if (this.generatingProjectTags) {
+            return [];
+        }
+        this.generatingProjectTags = true;
+
         const folders = vscode.workspace.workspaceFolders;
         if (folders === undefined) {
-            return Promise.resolve();
+            return [];
         }
 
         let error = await this.checkVersion();
         if (error !== undefined) {
-            vscode.window.showErrorMessage("could not find a ");
-            return;
+            return [error];
         }
 
-        const things = await Promise.all(
-            folders.map(folder => {
-                let filename = this.getTagsFileName(folder.uri);
-                let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", filename]);
-                return this.run(args, folder.uri.fsPath);
-            })
-        );
+        const jobs = folders.map(folder => this.generateProjectFolderTagsFile(folder));
+        try {
+            return await Promise.all(jobs);
+        } catch (e) {
+            if (e instanceof Error) {
+                return [e];
+            }
+            console.error(e);
+            return [Error("unknown error when generating project tags.")];
+        } finally {
+            this.generatingProjectTags = false;
+        }
+    }
+
+    async generateProjectFolderTagsFile(folder: vscode.WorkspaceFolder) {
+        let filename = this.getTagsFileName(folder.uri);
+        let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", filename]);
+
+        let res = await this.run(args, folder.uri.fsPath);
+        if (
+            !(res instanceof Error) ||
+            !res.message.match(/doesn't look like a tag file; I refuse to overwrite it./)
+        ) {
+            return res;
+        }
+
+        let remove = await asyncUnlink(path.join(folder.uri.fsPath, filename));
+        if (remove instanceof Error) {
+            return res;
+        }
+
+        return this.run(args, folder.uri.fsPath);
     }
 
     async generateFileTags(document: vscode.TextDocument): Promise<Result<TagsFile>> {
@@ -174,4 +204,15 @@ export class Ctags {
         const result = await this.generateFileTags(document);
         return [result];
     }
+}
+
+async function asyncUnlink(filename: string) {
+    return new Promise<Result<null>>((resolve, reject) => {
+        fs.unlink(filename, err => {
+            if (err) {
+                resolve(err);
+            }
+            resolve(null);
+        });
+    });
 }
