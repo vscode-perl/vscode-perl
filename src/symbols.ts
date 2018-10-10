@@ -50,7 +50,7 @@ export class PerlSymbolProvider
         query: string,
         token: vscode.CancellationToken
     ): Promise<vscode.SymbolInformation[]> {
-        if (query.length <= 2) {
+        if (query.length < 2) {
             return [];
         }
 
@@ -79,7 +79,7 @@ export class PerlSymbolProvider
                         kind = vscode.SymbolKind.Variable;
                     }
 
-                    if (kind == vscode.SymbolKind.Function && name.match(queryRegEx)) {
+                    if (name.match(queryRegEx)) {
                         let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
                         let range = new vscode.Range(lineNo, 0, lineNo, 0);
