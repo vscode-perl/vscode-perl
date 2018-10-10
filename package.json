@@ -2,7 +2,7 @@
     "name": "vscode-perl",
     "displayName": "Perl",
     "description": "Perl code intelligence via ctags.",
-    "version": "1.16.0",
+    "version": "1.17.0",
     "author": "Henrik Sjööh <hello@enhenrik.nu> (http://www.enhenrik.nu)",
     "license": "MIT",
     "repository": {

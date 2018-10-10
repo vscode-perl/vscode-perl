@@ -50,6 +50,10 @@ export class PerlSymbolProvider
         query: string,
         token: vscode.CancellationToken
     ): Promise<vscode.SymbolInformation[]> {
+		if (query.length <= 2) {
+			return [];
+        }
+
         let symbols: vscode.SymbolInformation[] = [];
         let results = await this.tags.readProjectTags();
 
@@ -62,6 +66,7 @@ export class PerlSymbolProvider
             let lines = tags.data.split("\n");
             let last = lines.length - 1;
             let match: string[];
+            let queryRegEx = new RegExp(query, "gi");
 
             for (let i = 0; i <= last; i++) {
                 match = lines[i].split("\t");
@@ -73,17 +78,20 @@ export class PerlSymbolProvider
                         console.error("Unknown symbol kind:", match[3]);
                         kind = vscode.SymbolKind.Variable;
                     }
-                    let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-                    let range = new vscode.Range(lineNo, 0, lineNo, 0);
+					if (kind == vscode.SymbolKind.Function && name.match(queryRegEx)) {
+                        let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-                    let file = match[1].replace(/^\.\\/, "");
-                    let filePath = path.join(vscode.workspace.rootPath || "", file);
-                    let uri = vscode.Uri.file(filePath);
+                        let range = new vscode.Range(lineNo, 0, lineNo, 0);
 
-                    let info = new vscode.SymbolInformation(name, kind, range, uri);
+                        let file = match[1].replace(/^\.\\/, "");
+                        let filePath = path.join(vscode.workspace.rootPath || "", file);
+                        let uri = vscode.Uri.file(filePath);
 
-                    symbols.push(info);
+                        let info = new vscode.SymbolInformation(name, kind, range, uri);
+
+                        symbols.push(info);
+                    }
                 }
             }
         }
