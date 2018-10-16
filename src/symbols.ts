@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { Ctags, SYMBOL_KINDS } from "./ctags";
+import * as filters from "./vs/base/common/filters";
+import * as utils from "./utils";
+import { SymbolEntry } from "./sorting";
 
 export class PerlSymbolProvider
     implements vscode.DocumentSymbolProvider, vscode.WorkspaceSymbolProvider {
@@ -59,17 +62,8 @@ export class PerlSymbolProvider
             return [];
         }
 
-        var symbolMap : Map<number, vscode.SymbolInformation[]> = new Map<number, vscode.SymbolInformation[]>();
-        let queryLength = query.length;
-
-        /*
-            Symbol match in vscode looks for characters after a break in the symbol, in this case :: or |
-
-            To accomodate this the query is split into parts, between each character of the query we
-            check if we can ignore the rest of the symbol up to either :: or |. Then we check if the next
-            symbol character matches the next query character.
-        */
-        query = query.split("").join("(.*?(_|::)+)*");
+        var validSymbols : vscode.SymbolInformation[] = [];
+        let regxQuery = new RegExp(query.split("").join(".*?"), "gi");
         let projectTags = await this.tags.readProjectTags();
         for (const tags of projectTags) {
             if (tags instanceof Error) {
@@ -80,7 +74,6 @@ export class PerlSymbolProvider
             let lines = tags.data.split("\n");
             let last = lines.length - 1;
             let match: string[];
-            let regxQuery = new RegExp(query, "gi");
 
             for (let i = 0; i <= last; i++) {
                 match = lines[i].split("\t");
@@ -93,8 +86,7 @@ export class PerlSymbolProvider
                         kind = vscode.SymbolKind.Variable;
                     }
 
-                    let regxResult = regxQuery.exec(name);
-                    if (regxResult) {
+                    if (regxQuery.test(name)) {
                         let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
                         let range = new vscode.Range(lineNo, 0, lineNo, 0);
@@ -105,35 +97,24 @@ export class PerlSymbolProvider
 
                         let info = new vscode.SymbolInformation(name, kind, range, uri);
 
-                        // In order to improve performance we store the results in a map, based on the match's length compared to the query length. Lower is better.
-                        let key = (regxResult[0].length - queryLength);
-                        let symbolArray: vscode.SymbolInformation[] = [];
-                        if (!symbolMap.has(key)) {
-                            symbolMap.set(key, symbolArray);
-                        } else {
-                            symbolArray = symbolMap.get(key) || [];
-                        }
-                        symbolArray.push(info);
+                        validSymbols.push(info);
                     }
                 }
             }
         }
+        let fuzzyMatches = validSymbols.map(symbol => {
+            let entry = new SymbolEntry(symbol);
+            let highlights = filters.matchesFuzzy(query, entry.getLabel()) || [];
+            entry.setHighlights(highlights);
+            return entry;
+        });
+        fuzzyMatches.sort((a, b) => SymbolEntry.compare(a, b, query));
 
         const maxResults = this.getMaxSymbolResults();
         let symbols: vscode.SymbolInformation[] = [];
-
-        //Sort the keys so that we first look at the shortest matches, until we have enough results.
-        let keys = [...symbolMap.keys()].sort((a: number, b: number) => a - b);
-        keys.forEach(key => {
+        fuzzyMatches.forEach(entry => {
             if (symbols.length < maxResults) {
-                let symbolArray: vscode.SymbolInformation[] = symbolMap.get(key) || [];
-                symbolArray.forEach(symbol => {
-                    if (symbols.length < maxResults) {
-                        symbols.push(symbol);
-                    } else {
-                        return;
-                    }
-                });
+                symbols.push(entry.getSymbol());
             } else {
                 return;
             }
