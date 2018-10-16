@@ -10,6 +10,11 @@ export class PerlSymbolProvider
         this.tags = tags;
     }
 
+    getMaxSymbolResults(): number {
+        let config = vscode.workspace.getConfiguration("perl");
+        return config.get("maxSymbolResults", 500);
+    }
+
     public async provideDocumentSymbols(
         document: vscode.TextDocument,
         token: vscode.CancellationToken
@@ -54,10 +59,19 @@ export class PerlSymbolProvider
             return [];
         }
 
-        let symbols: vscode.SymbolInformation[] = [];
-        let results = await this.tags.readProjectTags();
+        var symbolMap : Map<number, vscode.SymbolInformation[]> = new Map<number, vscode.SymbolInformation[]>();
+        let queryLength = query.length;
 
-        for (const tags of results) {
+        /*
+            Symbol match in vscode looks for characters after a break in the symbol, in this case :: or |
+
+            To accomodate this the query is split into parts, between each character of the query we
+            check if we can ignore the rest of the symbol up to either :: or |. Then we check if the next
+            symbol character matches the next query character.
+        */
+        query = query.split("").join("(.*?(_|::)+)*");
+        let projectTags = await this.tags.readProjectTags();
+        for (const tags of projectTags) {
             if (tags instanceof Error) {
                 vscode.window.showErrorMessage(`An error occured while reading tags: '${tags}'`);
                 continue;
@@ -66,7 +80,7 @@ export class PerlSymbolProvider
             let lines = tags.data.split("\n");
             let last = lines.length - 1;
             let match: string[];
-            let queryRegEx = new RegExp(query, "gi");
+            let regxQuery = new RegExp(query, "gi");
 
             for (let i = 0; i <= last; i++) {
                 match = lines[i].split("\t");
@@ -79,7 +93,8 @@ export class PerlSymbolProvider
                         kind = vscode.SymbolKind.Variable;
                     }
 
-                    if (name.match(queryRegEx)) {
+                    let regxResult = regxQuery.exec(name);
+                    if (regxResult) {
                         let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
                         let range = new vscode.Range(lineNo, 0, lineNo, 0);
@@ -90,12 +105,39 @@ export class PerlSymbolProvider
 
                         let info = new vscode.SymbolInformation(name, kind, range, uri);
 
-                        symbols.push(info);
+                        // In order to improve performance we store the results in a map, based on the match's length compared to the query length. Lower is better.
+                        let key = (regxResult[0].length - queryLength);
+                        let symbolArray: vscode.SymbolInformation[] = [];
+                        if (!symbolMap.has(key)) {
+                            symbolMap.set(key, symbolArray);
+                        } else {
+                            symbolArray = symbolMap.get(key) || [];
+                        }
+                        symbolArray.push(info);
                     }
                 }
             }
         }
 
+        const maxResults = this.getMaxSymbolResults();
+        let symbols: vscode.SymbolInformation[] = [];
+
+        //Sort the keys so that we first look at the shortest matches, until we have enough results.
+        let keys = [...symbolMap.keys()].sort((a: number, b: number) => a - b);
+        keys.forEach(key => {
+            if (symbols.length < maxResults) {
+                let symbolArray: vscode.SymbolInformation[] = symbolMap.get(key) || [];
+                symbolArray.forEach(symbol => {
+                    if (symbols.length < maxResults) {
+                        symbols.push(symbol);
+                    } else {
+                        return;
+                    }
+                });
+            } else {
+                return;
+            }
+        });
         return symbols;
     }
 }

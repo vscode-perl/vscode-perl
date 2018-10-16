@@ -49,6 +49,10 @@ export class Ctags {
         return this.getConfiguration().get("ctagsPath", "ctags");
     }
 
+    getExtraProjectCtagsArgs(): string[] {
+        return this.getConfiguration().get("extraProjectCtagsArgs", []);
+    }
+
     async checkVersion(): Promise<Option<Error>> {
         if (this.versionOk) {
             return undefined;
@@ -122,7 +126,7 @@ export class Ctags {
 
     async generateProjectFolderTagsFile(folder: vscode.WorkspaceFolder) {
         let filename = this.getTagsFileName(folder.uri);
-        let args = DEFAULT_ARGS.concat(["-R", "--perl-kinds=psc", "-f", filename]);
+        let args = DEFAULT_ARGS.concat(this.getExtraProjectCtagsArgs()).concat(["-R", "--perl-kinds=psc", "-f", filename]);
 
         let res = await this.run(args, folder.uri.fsPath);
         if (
