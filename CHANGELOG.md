@@ -1,3 +1,13 @@
+# [1.17.0] - 2018-08-18
+
+### Fixed
+
+-   Handling of .vstags file
+
+### Added
+
+-   Pre-filter results for symbol lookup, by @ganralf
+
 # [1.16.0] - 2018-08-18
 
 ### Added
@@ -50,7 +60,9 @@
 -   Released on Marketplace!
 -   Changelog
 
-[1.15.0]: https://github.com/henriiik/vscode-perl/compare/1.14.4...master
+[1.17.0]: https://github.com/henriiik/vscode-perl/compare/1.16.0...1.17.0
+[1.16.0]: https://github.com/henriiik/vscode-perl/compare/1.15.0...1.16.0
+[1.15.0]: https://github.com/henriiik/vscode-perl/compare/1.14.4...1.15.0
 [1.14.4]: https://github.com/henriiik/vscode-perl/compare/1.14.2...1.14.4
 [1.14.2]: https://github.com/henriiik/vscode-perl/compare/0.5.2...1.14.2
 [0.5.2]: https://github.com/henriiik/vscode-perl/compare/0.5.1...0.5.2
