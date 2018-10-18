@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { Ctags, SYMBOL_KINDS } from "./ctags";
+import * as filters from "./vs/base/common/filters";
+import * as utils from "./utils";
+import { SymbolEntry } from "./sorting";
 
 export class PerlSymbolProvider
     implements vscode.DocumentSymbolProvider, vscode.WorkspaceSymbolProvider {
@@ -8,6 +11,11 @@ export class PerlSymbolProvider
 
     constructor(tags: Ctags) {
         this.tags = tags;
+    }
+
+    getMaxSymbolResults(): number {
+        let config = vscode.workspace.getConfiguration("perl");
+        return config.get("maxSymbolResults", 500);
     }
 
     public async provideDocumentSymbols(
@@ -50,10 +58,14 @@ export class PerlSymbolProvider
         query: string,
         token: vscode.CancellationToken
     ): Promise<vscode.SymbolInformation[]> {
-        let symbols: vscode.SymbolInformation[] = [];
-        let results = await this.tags.readProjectTags();
+        if (query.length < 2) {
+            return [];
+        }
 
-        for (const tags of results) {
+        var validSymbols : vscode.SymbolInformation[] = [];
+        let regxQuery = new RegExp(query.split("").join(".*?"), "gi");
+        let projectTags = await this.tags.readProjectTags();
+        for (const tags of projectTags) {
             if (tags instanceof Error) {
                 vscode.window.showErrorMessage(`An error occured while reading tags: '${tags}'`);
                 continue;
@@ -73,21 +85,40 @@ export class PerlSymbolProvider
                         console.error("Unknown symbol kind:", match[3]);
                         kind = vscode.SymbolKind.Variable;
                     }
-                    let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-                    let range = new vscode.Range(lineNo, 0, lineNo, 0);
+                    if (regxQuery.test(name)) {
+                        let lineNo = parseInt(match[2].replace(/[^\d]/g, "")) - 1;
 
-                    let file = match[1].replace(/^\.\\/, "");
-                    let filePath = path.join(vscode.workspace.rootPath || "", file);
-                    let uri = vscode.Uri.file(filePath);
+                        let range = new vscode.Range(lineNo, 0, lineNo, 0);
 
-                    let info = new vscode.SymbolInformation(name, kind, range, uri);
+                        let file = match[1].replace(/^\.\\/, "");
+                        let filePath = path.join(vscode.workspace.rootPath || "", file);
+                        let uri = vscode.Uri.file(filePath);
 
-                    symbols.push(info);
+                        let info = new vscode.SymbolInformation(name, kind, range, uri);
+
+                        validSymbols.push(info);
+                    }
                 }
             }
         }
+        let fuzzyMatches = validSymbols.map(symbol => {
+            let entry = new SymbolEntry(symbol);
+            let highlights = filters.matchesFuzzy(query, entry.getLabel()) || [];
+            entry.setHighlights(highlights);
+            return entry;
+        });
+        fuzzyMatches.sort((a, b) => SymbolEntry.compare(a, b, query));
 
+        const maxResults = this.getMaxSymbolResults();
+        let symbols: vscode.SymbolInformation[] = [];
+        fuzzyMatches.forEach(entry => {
+            if (symbols.length < maxResults) {
+                symbols.push(entry.getSymbol());
+            } else {
+                return;
+            }
+        });
         return symbols;
     }
 }
