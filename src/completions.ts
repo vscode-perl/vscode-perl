@@ -126,7 +126,7 @@ export class PerlCompletionProvider implements vscode.CompletionItemProvider {
                     if (match[3].replace(/[^\w]/g, "") === "p") {
                         filePackage[match[0]] = match[1];
                         packageItems.push(item);
-                    } else {
+                    } else if (match[0].indexOf("::") === -1) {
                         fileItems[match[1]].push(item);
 
                         if (match[0] === "new") {
