@@ -42,7 +42,9 @@ export class PerlFormattingProvider implements vscode.DocumentRangeFormattingEdi
             }
 
             let text = document.getText(range);
-            let child = cp.spawn(executable, args);
+            let child = cp.spawn(executable, args, {
+                cwd: vscode.workspace.rootPath
+            });
             child.stdin.write(text);
             child.stdin.end();
 
