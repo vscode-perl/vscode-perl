@@ -7,12 +7,12 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/henriiik/vscode-perl"
+        "url": "https://github.com/vscode-perl/vscode-perl"
     },
     "bugs": {
-        "url": "https://github.com/henriiik/vscode-perl/issues"
+        "url": "https://github.com/vscode-perl/vscode-perl/issues"
     },
-    "homepage": "https://github.com/henriiik/vscode-perl",
+    "homepage": "https://github.com/vscode-perl/vscode-perl",
     "categories": [
         "Programming Languages"
     ],
