@@ -21,7 +21,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider,
 
   public async provideDocumentSymbols(
       document: vscode.TextDocument,
-      token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
+      token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[]> {
     let result = await this.tags.generateFileTags(document);
     if (result instanceof Error) {
       console.error('error', result);
@@ -29,7 +29,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider,
     }
 
     let lines = result.data.split('\n');
-    let symbols: vscode.SymbolInformation[] = [];
+    let symbols: vscode.DocumentSymbol[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       let match = lines[i].split('\t');
