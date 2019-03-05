@@ -1,7 +1,3 @@
-# Looking for maintainer
-
-This extension is not being actively developed. If you are interested in taking over the project start an issue.
-
 # Perl for Visual Studio Code
 
 This extension aims to bring code intelligence for the Perl language to [Visual Studio Code](https://code.visualstudio.com/), mainly through the use of [Exuberant Ctags](http://ctags.sourceforge.net/).
