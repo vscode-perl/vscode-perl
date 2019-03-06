@@ -6,7 +6,7 @@
     - title: Bug Fixes
       label: bug
   change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
-  branches: release-
+  branches: test_release_drafter
   template: |
     ## Changes
 
