@@ -1,12 +1,10 @@
-name-template: $NEXT_MINOR_VERSION
-tag-template: $NEXT_MINOR_VERSION
 categories:
   - titles: Features
     label: enhancement
   - title: Bug Fixes
     label: bug
 change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
-branches: test_release_drafter
+branches: release-*
 template: |
   ## Changes
 
