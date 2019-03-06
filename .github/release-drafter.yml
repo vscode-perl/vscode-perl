@@ -1,0 +1,37 @@
+- name-template: $NEXT_MINOR_VERSION
+  tag-template: $NEXT_MINOR_VERSION
+  categories:
+    - titles: Features
+      label: enhancement
+    - title: Bug Fixes
+      label: bug
+  change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+  branches: release-
+  template: |
+    ## Changes
+
+    $CHANGES
+
+- name-template: $NEXT_MAJOR_VERSION
+  tag-template: $NEXT_MAJOR_VERSION
+  categories:
+    - titles: Features
+      label: enhancement
+    - title: Bug Fixes
+      label: bug
+  change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+  template: |
+    ## Changes
+
+    $CHANGES
+
+- name-template: $NEXT_PATCH_VERSION
+  tag-template: $NEXT_PATCH_VERSION
+  categories:
+    - title: Bug Fixes
+      label: bug
+  change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+  template: |
+    ## Changes
+
+    $CHANGES
