@@ -6,6 +6,6 @@ categories:
 change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 branches: master
 template: |
-  ## Changes
+  # Changes
 
   $CHANGES
