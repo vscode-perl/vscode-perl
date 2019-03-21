@@ -4,7 +4,7 @@ categories:
   - title: Bug Fixes
     label: bug
 change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
-branches: release-*
+branches: master
 template: |
   ## Changes
 
