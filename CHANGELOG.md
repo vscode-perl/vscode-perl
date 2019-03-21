@@ -1,3 +1,14 @@
+
+# [1.18.0] - 2019-03-21
+### Features 🚀
+
+- Add support for outline API @ngetahun (#27)
+
+### Bug Fixes 🐛
+
+- Execute perltidy in workspace.rootPath @lukaskuzmiak (#24)
+
+
 # [1.17.0] - 2018-08-18
 
 ### Fixed
