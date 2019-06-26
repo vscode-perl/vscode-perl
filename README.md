@@ -16,12 +16,18 @@ By default the extension will look for a `ctags` executable in your path, you ca
 
 ## Installation
 
-### OS X
+### macOS
 
-You can install ctags with the package manager [homebrew](http://brew.sh/).
+You can install ctags with the package manager [homebrew](https://brew.sh/):
 
 ```sh
 brew install ctags
+```
+
+…or with [MacPorts](https://www.macports.org):
+
+```sh
+sudo port install ctags
 ```
 
 ### Windows
