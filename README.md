@@ -12,7 +12,7 @@ Follow the instructions below to install `ctags`, and then open a file with the 
 
 # Exuberant Ctags
 
-By default the extension will look for a `ctags` executable in your path, you can specify a diffrent executable with the setting `perl.ctags.executable`
+By default the extension will look for a `ctags` executable in your path, you can specify a different executable with the setting `perl.ctags.executable`
 
 ## Installation
 
