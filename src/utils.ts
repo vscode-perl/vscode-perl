@@ -17,7 +17,7 @@ export function getPackageBefore(document: vscode.TextDocument, range: vscode.Ra
     let separator = document.getText(separatorRange);
     let pkg = "";
 
-    while (separator === "::") {
+    while (separator === "::" || separator === "->") {
         const newRange = document.getWordRangeAtPosition(getPointBefore(separatorRange, 1));
         if (newRange) {
             range = newRange;
@@ -30,7 +30,7 @@ export function getPackageBefore(document: vscode.TextDocument, range: vscode.Ra
         }
     }
 
-    return pkg.replace(/::$/, "");
+    return pkg.replace(/(::|->)$/, "");
 }
 
 export function getMatchLocation(line: string, rootPath?: string): vscode.Location {
