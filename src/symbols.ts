@@ -64,7 +64,7 @@ export class PerlSymbolProvider implements vscode.DocumentSymbolProvider,
     }
 
     var validSymbols: vscode.SymbolInformation[] = [];
-    let regxQuery = new RegExp(query.split('').join('.*?'), 'gi');
+    let regxQuery = new RegExp(query.split('').join('.*?'), 'i');
     let projectTags = await this.tags.readProjectTags();
     for (const tags of projectTags) {
       if (tags instanceof Error) {
